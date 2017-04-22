@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>mbr_message.s</title>
+<meta name="Generator" content="Vim/7.4">
+<meta name="plugin-version" content="vim7.4_v2">
+<meta name="syntax" content="asm">
+<meta name="settings" content="use_css,no_foldcolumn,expand_tabs,prevent_copy=">
+<meta name="colorscheme" content="techras">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #ffffff; background-color: #000000; }
+body { font-family: monospace; color: #ffffff; background-color: #000000; }
+* { font-size: 1em; }
+.Number { color: #c00000; }
+.Comment { color: #005fff; }
+.Identifier { color: #008080; }
+.Statement { color: #af5f00; }
+-->
+</style>
+
+</head>
+<body>
+<pre id='vimCodeElement'>
+<span class="Comment"># Contains those bytes I use from the ELF file, and the code for the mbr.</span>
+<span class="Comment"># Everything after a `vimcmd;` prompt</span>
+<span class="Comment"># Is a command to be run by vim. It's just a keybinding I have that I find</span>
+<span class="Comment"># useful sometimes.</span>
+<span class="Statement">.code16</span>
+    <span class="Statement">.globl</span> <span class="Identifier">_start</span>
+<span class="Comment"># Like in elfhdr.s, marking a section out just so I can tell the linker where</span>
+<span class="Comment"># in memory this is getting loaded.</span>
+<span class="Statement">.text</span>
+<span class="Identifier">section_start</span>:
+    <span class="Comment"># ELF header that I have to have</span>
+    <span class="Statement">.byte</span>      <span class="Number">0x7F</span>, '<span class="Identifier">E</span>', '<span class="Identifier">L</span>', '<span class="Identifier">F</span>', <span class="Number">1</span>, <span class="Number">1</span>, <span class="Number">1</span>, <span class="Number">0 </span>        <span class="Comment">#   e_ident</span>
+
+    <span class="Comment"># In case ZF != 0  or  SF != OF</span>
+    <span class="Comment"># Doesn't matter that much, as the ELF header between here and the jg</span>
+    <span class="Comment"># target is pretty harmless, but nice to have.</span>
+    <span class="Identifier">jmp</span> <span class="Identifier">_start</span>
+
+    <span class="Comment"># In case ZF == 0  and SF == OF.</span>
+    <span class="Comment"># This is the case on startup of a qemu instance, but is not the case on</span>
+    <span class="Comment"># startup of a bochs emulation, so account for both.</span>
+    <span class="Comment"># The ELF magic number causes a jmp to 0x47</span>
+<span class="Statement">.fill</span> <span class="Number">0x47</span> - (. - <span class="Identifier">section_start</span>), <span class="Number">1</span>, <span class="Number">0</span>
+    <span class="Identifier">jmp</span> <span class="Identifier">_start</span>
+
+<span class="Comment"># Find offset of the message</span>
+<span class="Comment"># vimcmd; +1! grep -o -b -a '&quot;' elffile.out | python -c 'import re; print(&quot;.set quotation_mark,&quot;, hex(int(re.sub(r&quot;(\d+):.*&quot;, r&quot;\1&quot;, input()))))'</span>
+<span class="Statement">.set</span> <span class="Identifier">quotation_mark</span>, <span class="Number">0xec</span>
+    <span class="Statement">.fill</span> <span class="Identifier">quotation_mark</span> - (. - <span class="Identifier">section_start</span>), <span class="Number">1</span>, <span class="Number">0</span>
+<span class="Identifier">quot_char</span>:
+    <span class="Statement">.byte</span> '&quot;'
+
+<span class="Comment"># Padding to move into the space I've reserved.</span>
+    <span class="Statement">.byte</span> <span class="Number">0</span>
+    <span class="Statement">.byte</span> <span class="Number">0</span>
+
+<span class="Identifier">_start</span>:
+    <span class="Identifier">movw</span> $<span class="Number">0x7c0</span>     , %<span class="Identifier">ax</span>
+    <span class="Identifier">movw</span> %<span class="Identifier">ax</span>        , %<span class="Identifier">ds</span>
+    <span class="Identifier">movb</span> <span class="Number">0x3</span>     , %<span class="Identifier">al</span>
+    <span class="Identifier">movb</span> $<span class="Number">0x0e</span> , %<span class="Identifier">ah</span>
+    <span class="Identifier">int</span> $<span class="Number">0x10</span>
+    <span class="Identifier">movb</span> <span class="Identifier">u_letter</span> - <span class="Identifier">section_start</span>, %<span class="Identifier">al</span>
+    <span class="Identifier">movb</span> $<span class="Number">0x0e</span> , %<span class="Identifier">ah</span>
+    <span class="Identifier">int</span> $<span class="Number">0x10</span>
+    <span class="Identifier">movb</span> <span class="Identifier">n_letter</span> - <span class="Identifier">section_start</span>, %<span class="Identifier">al</span>
+    <span class="Identifier">movb</span> $<span class="Number">0x0e</span>     , %<span class="Identifier">ah</span>
+    <span class="Identifier">int</span> $<span class="Number">0x10</span>
+    <span class="Identifier">movb</span> <span class="Identifier">at_char</span> - <span class="Identifier">section_start</span>, %<span class="Identifier">al</span>
+    <span class="Identifier">subb</span> $('@' - '<span class="Comment">!'), %al</span>
+    <span class="Identifier">movb</span> $<span class="Number">0x0e</span> , %<span class="Identifier">ah</span>
+    <span class="Identifier">int</span> $<span class="Number">0x10</span>
+<span class="Identifier">jmp</span> .
+
+
+<span class="Comment"># vimcmd; +1! grep -o -b -a 'My words' elffile.out | python -c 'import re; print(&quot;.set message_offset,&quot;, hex(int(re.sub(r&quot;(\d+):.*&quot;, r&quot;\1&quot;, input()))))'</span>
+<span class="Statement">.set</span> <span class="Identifier">message_offset</span>, <span class="Number">0x115</span>
+<span class="Statement">.fill</span> <span class="Identifier">message_offset</span> + <span class="Number">0x13</span> - (. - <span class="Identifier">section_start</span>), <span class="Number">1</span>, <span class="Number">0</span>
+<span class="Identifier">u_letter</span>:
+    <span class="Statement">.byte</span> '<span class="Identifier">u</span>'
+<span class="Statement">.fill</span> <span class="Identifier">message_offset</span> + <span class="Number">0x46</span> - (. - <span class="Identifier">section_start</span>), <span class="Number">1</span>, <span class="Number">0</span>
+<span class="Identifier">n_letter</span>:
+    <span class="Statement">.byte</span> '<span class="Identifier">n</span>'
+<span class="Comment"># Find offset of an at sign</span>
+<span class="Comment"># vimcmd; +1! grep -o -b -a '@' elffile.out | python -c 'import re; print(&quot;.set at_sign,&quot;, hex(int(re.sub(r&quot;(\d+):.*&quot;, r&quot;\1&quot;, input()))))'</span>
+<span class="Statement">.set</span> <span class="Identifier">at_sign</span>, <span class="Number">0x186</span>
+    <span class="Statement">.fill</span> <span class="Identifier">at_sign</span> - (. - <span class="Identifier">section_start</span>), <span class="Number">1</span>, <span class="Number">0</span>
+<span class="Identifier">at_char</span>:
+    <span class="Statement">.byte</span> '@'
+
+
+<span class="Statement">.fill</span> <span class="Number">510</span> - (. - <span class="Identifier">section_start</span>), <span class="Number">1</span>, <span class="Number">0</span>
+    <span class="Statement">.byte</span> <span class="Number">0x55</span>
+    <span class="Statement">.byte</span> <span class="Number">0xAA</span>
+</pre>
+</body>
+</html>
+<!-- vim: set foldmethod=manual : -->

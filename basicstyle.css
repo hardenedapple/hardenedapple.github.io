@@ -1,0 +1,36 @@
+body {
+    margin:40px auto;
+    max-width:650px;
+    line-height:1.6;
+    font-size:18px;
+    color:#444;
+    padding:0 10px
+}
+header {
+    text-align:center;
+}
+h1,h2,h3 {
+    line-height:1.2;
+}
+
+pre {
+    padding-left:5%;
+}
+
+code {
+    font-size:15px;
+    white-space:nowrap;
+}
+
+pre>code {
+    font:mono;
+    line-height:1.0;
+    white-space:pre;
+    overflow:scroll;
+    tab-size:8;
+}
+
+img {
+    width: 90%;
+    max-width: 100%;
+}

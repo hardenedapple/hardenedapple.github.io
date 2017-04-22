@@ -1,0 +1,189 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>elfhdr.s</title>
+<meta name="Generator" content="Vim/7.4">
+<meta name="plugin-version" content="vim7.4_v2">
+<meta name="syntax" content="asm">
+<meta name="settings" content="use_css,no_foldcolumn,expand_tabs,prevent_copy=">
+<meta name="colorscheme" content="techras">
+<style type="text/css">
+<!--
+pre { font-family: monospace; color: #ffffff; background-color: #000000; }
+body { font-family: monospace; color: #ffffff; background-color: #000000; }
+* { font-size: 1em; }
+.Number { color: #c00000; }
+.Comment { color: #005fff; }
+.Identifier { color: #008080; }
+.Statement { color: #af5f00; }
+.Todo { color: #000000; background-color: #008787; padding-bottom: 1px; }
+-->
+</style>
+
+</head>
+<body>
+<pre id='vimCodeElement'>
+<span class="Comment"># </span><span class="Todo">TODO</span><span class="Comment"> Stop `file` saying &quot;with debug_info&quot;</span>
+<span class="Statement">.code32</span>
+    <span class="Statement">.globl</span> <span class="Identifier">_start</span>
+<span class="Comment"># This is for the linker to have a named section that I can tell it to keep at</span>
+<span class="Comment"># the start of the file. The fact it's named .text here doesn't matter in the</span>
+<span class="Comment"># slightest, I could have used .data and the linker flag -Tdata, or I could</span>
+<span class="Comment"># have used .section mysection, &quot;2&quot; and --section-start=mysection=0x7c00 .</span>
+<span class="Statement">.text</span>
+<span class="Identifier">ehdr</span>:                                                 <span class="Comment"># Elf32_Ehdr</span>
+              <span class="Statement">.byte</span>      <span class="Number">0x7F</span>, '<span class="Identifier">E</span>', '<span class="Identifier">L</span>', '<span class="Identifier">F</span>', <span class="Number">1</span>, <span class="Number">1</span>, <span class="Number">1</span>, <span class="Number">0 </span>        <span class="Comment">#   e_ident</span>
+              <span class="Comment"># Can overwrite some bytes here -- as was done in</span>
+              <span class="Comment"># <a href="http://www.muppetlabs.com/~breadbox/software/tiny/teensy.html">http://www.muppetlabs.com/~breadbox/software/tiny/teensy.html</a></span>
+              <span class="Comment"># (which is awesome by the way ... you should check it out).</span>
+              <span class="Comment"># We do this so that if the `jg` instruction that is the two</span>
+              <span class="Comment"># bytes of the ELF header isn't triggered, we can jmp to the mbr</span>
+              <span class="Comment"># code without going over the rest of this header.</span>
+              <span class="Comment"># It doesn't appear to matter -- there aren't any bytes that</span>
+              <span class="Comment"># would be interpreted as troublesome instructions between here</span>
+              <span class="Comment"># and the p_paddr member, but it's nice to be sure.</span>
+      <span class="Statement">.fill</span> <span class="Number">8</span>, <span class="Number">1</span>, <span class="Number">0</span>
+              <span class="Statement">.word</span>      <span class="Number">2</span>                               <span class="Comment">#   e_type</span>
+              <span class="Statement">.word</span>      <span class="Number">3</span>                               <span class="Comment">#   e_machine</span>
+              <span class="Statement">.long</span>      <span class="Number">1</span>                               <span class="Comment">#   e_version</span>
+              <span class="Statement">.long</span>      <span class="Identifier">_start</span>                          <span class="Comment">#   e_entry</span>
+              <span class="Statement">.long</span>      <span class="Identifier">phdr</span> - <span class="Identifier">ehdr</span>                     <span class="Comment">#   e_phoff</span>
+              <span class="Statement">.long</span>      <span class="Identifier">shdr</span> - <span class="Identifier">ehdr</span>                     <span class="Comment">#   e_shoff</span>
+              <span class="Statement">.long</span>      <span class="Number">0 </span>                              <span class="Comment">#   e_flags</span>
+              <span class="Statement">.word</span>      <span class="Identifier">ehdrsize</span>                        <span class="Comment">#   e_ehsize</span>
+              <span class="Statement">.word</span>      <span class="Identifier">phdrsize</span>                        <span class="Comment">#   e_phentsize</span>
+              <span class="Statement">.word</span>      <span class="Number">1</span>                               <span class="Comment">#   e_phnum</span>
+              <span class="Statement">.word</span>      <span class="Identifier">shdrsize</span>                        <span class="Comment">#   e_shentsize</span>
+              <span class="Comment"># One for the reserved entry</span>
+              <span class="Comment"># one for a .text section</span>
+              <span class="Comment"># and one for the string table.</span>
+              <span class="Comment"># Possibly in the future, contain the mbr code in a .special</span>
+              <span class="Comment"># segment as an extra hint that can be seen with objdump/readelf?</span>
+              <span class="Comment"># Decide once difficulty level has been determined.</span>
+              <span class="Statement">.word</span>      <span class="Number">3</span>                               <span class="Comment">#   e_shnum</span>
+              <span class="Statement">.word</span>      <span class="Number">2</span>                               <span class="Comment">#   e_shstrndx</span>
+
+<span class="Statement">.set</span> <span class="Identifier">ehdrsize</span>, . - <span class="Identifier">ehdr</span>
+
+<span class="Statement">.fill</span> <span class="Number">7</span>, <span class="Number">1</span>, <span class="Number">0</span>
+<span class="Identifier">phdr</span>:                                                 <span class="Comment"># Elf32_Phdr</span>
+              <span class="Statement">.long</span>      <span class="Number">1</span>                               <span class="Comment">#   p_type</span>
+              <span class="Statement">.long</span>      <span class="Number">0 </span>                              <span class="Comment">#   p_offset</span>
+              <span class="Statement">.long</span>      <span class="Number">0x08048000</span>                      <span class="Comment">#   p_vaddr</span>
+              <span class="Comment"># Physical addressing is not relevant on Linux, according to</span>
+              <span class="Comment"># <a href="http://www.sco.com/developers/gabi/latest/ch5.pheader.html">http://www.sco.com/developers/gabi/latest/ch5.pheader.html</a></span>
+              <span class="Comment"># On System V this member has unspecified contents for executable</span>
+              <span class="Comment"># files.</span>
+              <span class="Comment"># man elf(5) say that on BSD it must be 0 ... but it seems to</span>
+              <span class="Comment"># work fine on my Linux machine.</span>
+              <span class="Comment"># I've padded the file above here, and will overwrite this value</span>
+              <span class="Comment"># with a jmp instruction so the possible execution of the jg</span>
+              <span class="Comment"># instruction that is the first two bytes of the ELF magic number</span>
+              <span class="Comment"># moves us to an instruction we've controlled and that gets us</span>
+              <span class="Comment"># back to the embedded mbr code</span>
+              <span class="Comment"># N.B. As far as I've observed, the jg instruction is executed</span>
+              <span class="Comment"># when I boot this file with qemu-system-x86_64, but not when I</span>
+              <span class="Comment"># boot it with bochs. I didn't find anything saying what state</span>
+              <span class="Comment"># the condition flags should be in, so I guess that's</span>
+              <span class="Comment"># unspecified.</span>
+              <span class="Statement">.long</span>      <span class="Number">0x08000000</span>                      <span class="Comment">#   p_paddr</span>
+              <span class="Comment"># NOTE: We could put the jmp instruction we need in the p_filesz</span>
+              <span class="Comment"># and p_memsz members of this struct. For this to work we</span>
+              <span class="Comment"># need p_memsz and p_filesz to be the same (or a SHT_NOBITS</span>
+              <span class="Comment"># section). Otherwise we get a Segmentation fault startup of the</span>
+              <span class="Comment"># program.</span>
+              <span class="Statement">.long</span>      <span class="Identifier">filesize</span>                        <span class="Comment">#   p_filesz</span>
+              <span class="Statement">.long</span>      <span class="Identifier">filesize</span>                        <span class="Comment">#   p_memsz</span>
+              <span class="Statement">.long</span>      <span class="Number">5</span>                               <span class="Comment">#   p_flags</span>
+              <span class="Statement">.long</span>      <span class="Number">0x1000</span>                          <span class="Comment">#   p_align</span>
+
+<span class="Statement">.set</span> <span class="Identifier">phdrsize</span>,     . - <span class="Identifier">phdr</span>
+
+
+<span class="Comment"># Reserved first section header entry.</span>
+<span class="Comment"># See man elf(5), second paragraph under section &quot;Section header (Shdr)&quot;</span>
+<span class="Identifier">shdr</span>:
+<span class="Statement">.fill</span> <span class="Number">10</span>, <span class="Number">4</span>, <span class="Number">0</span>
+<span class="Statement">.set</span> <span class="Identifier">shdrsize</span>,     . - <span class="Identifier">shdr</span>
+
+
+<span class="Comment"># .text section header</span>
+<span class="Identifier">textshdr</span>:
+            <span class="Statement">.long</span>  <span class="Number">1</span>   <span class="Comment"># sh_name</span>
+            <span class="Statement">.long</span>  <span class="Number">1</span>   <span class="Comment"># sh_type SHT_PROGBITS</span>
+            <span class="Statement">.long</span>  <span class="Number">2</span>   <span class="Comment"># sh_flags SHF_ALLOC</span>
+            <span class="Statement">.long</span>  <span class="Identifier">_start</span> <span class="Comment"># sh_addr, start of the .text section</span>
+            <span class="Statement">.long</span>  <span class="Identifier">_start</span> - <span class="Identifier">ehdr</span> <span class="Comment"># sh_offset (position in file)</span>
+            <span class="Statement">.long</span>  <span class="Identifier">progend</span> - <span class="Identifier">_start</span>    <span class="Comment"># sh_size</span>
+            <span class="Statement">.long</span>  <span class="Number">0 </span>  <span class="Comment"># sh_link</span>
+            <span class="Statement">.long</span>  <span class="Number">0 </span>  <span class="Comment"># sh_info</span>
+            <span class="Statement">.long</span>  <span class="Number">16</span>  <span class="Comment"># sh_addralign</span>
+            <span class="Statement">.long</span>  <span class="Number">0 </span>  <span class="Comment"># sh_entsize</span>
+
+
+<span class="Comment"># String section header</span>
+<span class="Identifier">stringshdr</span>:
+            <span class="Statement">.long</span>  <span class="Identifier">shstrtabname</span>   <span class="Comment"># sh_name</span>
+            <span class="Statement">.long</span>  <span class="Number">3</span>   <span class="Comment"># sh_type -- SHT_STRTAB</span>
+            <span class="Statement">.long</span>  <span class="Number">0 </span>  <span class="Comment"># sh_flags</span>
+            <span class="Statement">.long</span>  <span class="Number">0 </span>  <span class="Comment"># sh_addr (position in loaded memory)</span>
+            <span class="Statement">.long</span>  <span class="Identifier">stringsection</span> - <span class="Identifier">ehdr</span> <span class="Comment"># sh_offset (position in file)</span>
+            <span class="Statement">.long</span>  <span class="Identifier">stringsection_size</span> <span class="Comment"># sh_size</span>
+            <span class="Statement">.long</span>  <span class="Number">0 </span>  <span class="Comment"># sh_link</span>
+            <span class="Statement">.long</span>  <span class="Number">0 </span>  <span class="Comment"># sh_info</span>
+            <span class="Statement">.long</span>  <span class="Number">1</span>   <span class="Comment"># sh_addralign</span>
+            <span class="Statement">.long</span>  <span class="Number">0 </span>  <span class="Comment"># sh_entsize</span>
+
+<span class="Comment"># String section bits</span>
+<span class="Identifier">stringsection</span>:
+            <span class="Comment"># Name for &quot;first&quot; (reserved) section number</span>
+            <span class="Statement">.byte</span> <span class="Number">0</span>
+            <span class="Statement">.asciz</span> &quot;<span class="Statement">.text</span>&quot;
+<span class="Statement">.set</span> <span class="Identifier">shstrtabname</span>, . - <span class="Identifier">stringsection</span>
+            <span class="Statement">.asciz</span> &quot;<span class="Statement">.shstrtab</span>&quot;
+            <span class="Comment"># Currently unused segment name ... other than that I grep the</span>
+            <span class="Comment"># file for it to find where my space for the mbr is.</span>
+            <span class="Statement">.asciz</span> &quot;<span class="Statement">.special</span>\&quot;&quot;
+<span class="Statement">.set</span> <span class="Identifier">stringsection_size</span>, . - <span class="Identifier">stringsection</span>
+
+<span class="Comment"># Space for the mbr</span>
+<span class="Comment"># Would be cool to have the mbr as part of the .data section of the main</span>
+<span class="Comment"># executable.</span>
+<span class="Comment"># Would be even better to overlay the instructions with something else -- like</span>
+<span class="Comment"># the instructions for the ELF file.</span>
+<span class="Comment"># Not sure if it would make it too difficult a challenge ... doubt people even</span>
+<span class="Comment"># look into these instructions anyway.</span>
+<span class="Comment"># Plus, may be difficult to do for me to bother ;-)</span>
+<span class="Statement">.fill</span> <span class="Number">0x27</span>, <span class="Number">1</span>, <span class="Number">0</span>
+
+<span class="Identifier">message</span>:
+    <span class="Statement">.ascii</span> &quot;<span class="Identifier">My</span> <span class="Identifier">words</span> <span class="Identifier">may</span> <span class="Identifier">be</span> <span class="Identifier">obtuse</span>.\<span class="Identifier">n</span>&quot;
+    <span class="Statement">.ascii</span> &quot;<span class="Identifier">But</span> <span class="Identifier">they</span> <span class="Identifier">reveal</span> <span class="Identifier">a</span> <span class="Identifier">truth</span>.\<span class="Identifier">n</span>&quot;
+    <span class="Statement">.ascii</span> &quot;<span class="Identifier">Read</span> <span class="Identifier">them</span> <span class="Identifier">carefully</span> <span class="Identifier">and</span> <span class="Identifier">give</span> <span class="Identifier">me</span> <span class="Identifier">a</span> ...\<span class="Identifier">n</span>&quot;
+<span class="Statement">.set</span> <span class="Identifier">message_len</span>, . - <span class="Identifier">message</span>
+
+<span class="Identifier">_start</span>:
+    <span class="Comment"># Print message</span>
+    <span class="Identifier">movl</span> $<span class="Identifier">message_len</span>, %<span class="Identifier">edx</span>
+    <span class="Identifier">movl</span> $<span class="Identifier">message</span>, %<span class="Identifier">ecx</span>
+    <span class="Identifier">movl</span> $<span class="Number">1</span>,  %<span class="Identifier">ebx</span>
+    <span class="Identifier">movl</span> $<span class="Number">4</span>,  %<span class="Identifier">eax</span>
+    <span class="Identifier">int</span> $<span class="Number">0x80</span>
+    <span class="Comment"># exit</span>
+    <span class="Identifier">mov</span> $<span class="Number">1</span>, %<span class="Identifier">bl</span>
+    <span class="Identifier">xor</span> %<span class="Identifier">eax</span>, %<span class="Identifier">eax</span>
+    <span class="Identifier">inc</span> %<span class="Identifier">eax</span>
+    <span class="Identifier">int</span> $<span class="Number">0x80</span>
+
+<span class="Comment"># Maybe should have more code, so that the bootable flag is hidden?</span>
+<span class="Comment"># Would be cool to find an instruction that contains the bootable flag (maybe</span>
+<span class="Comment"># even just a mov with a literal) so it's completely hidden.</span>
+<span class="Comment"># Probably would make the challenge too hard.</span>
+<span class="Statement">.org</span> <span class="Number">1024</span>, <span class="Number">0</span>
+<span class="Statement">.set</span> <span class="Identifier">progend</span>, .
+<span class="Statement">.set</span> <span class="Identifier">filesize</span>, . - <span class="Identifier">ehdr</span>
+</pre>
+</body>
+</html>
+<!-- vim: set foldmethod=manual : -->
