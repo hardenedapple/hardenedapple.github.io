@@ -30,17 +30,17 @@
       So we have a binary ... let's have a look at what it is:
       <pre>
         <code>
-          vshcmd: &gt; xxd -p -r Puzzle.bin &gt; challenge_binary
-          puzzle [15:32:08] $
-          vshcmd: &gt; file challenge_binary
-          challenge_binary: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped, with debug_info
-          puzzle [15:33:13] $
-          vshcmd: &gt; chmod +x ./challenge_binary &amp; ./challenge_binary
-          My words may be obtuse.
-          But they reveal a truth.
-          Read them carefully and give me a ...
-          puzzle [15:33:14] $
-          vshcmd: &gt;
+vshcmd: &gt; xxd -p -r Puzzle.bin &gt; challenge_binary
+puzzle [15:32:08] $
+vshcmd: &gt; file challenge_binary
+challenge_binary: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped, with debug_info
+puzzle [15:33:13] $
+vshcmd: &gt; chmod +x ./challenge_binary &amp; ./challenge_binary
+My words may be obtuse.
+But they reveal a truth.
+Read them carefully and give me a ...
+puzzle [15:33:14] $
+vshcmd: &gt;
         </code>
       </pre>
       Huh. Not particularly useful, and pretty strange ...
@@ -53,45 +53,45 @@
     <p>
       I guess run it in a debugger?
       <pre><code>
-        vshcmd: &gt; gdb challenge_binary
-        Reading symbols from challenge_binary...(no debugging symbols found)...done.
-        (gdb)
-        vshcmd: &gt; # No debugging symbols found? I guess `file` was wrong.
-        vshcmd: &gt; start
-        No symbol table loaded.  Use the "file" command.
-        (gdb)
-        vshcmd: &gt; # Oh yeah, no symbols. I guess do this manually.
-        vshcmd: &gt; info target
-        Symbols from "/&lt;directory&gt;/challenge_binary".
-        Local exec file:
-          `/&lt;directory&gt;/challenge_binary', file type elf32-i386.
-          Entry point: 0x804816c
-          0x0804816c - 0x08048400 is .text
-        (gdb)
-        vshcmd: &gt; tbreak *0x804816c
-        Temporary breakpoint 1 at 0x804816c
-        (gdb)
-        vshcmd: &gt; run
-        Starting program: /&lt;directory&gt;/challenge_binary
+vshcmd: &gt; gdb challenge_binary
+Reading symbols from challenge_binary...(no debugging symbols found)...done.
+(gdb)
+vshcmd: &gt; # No debugging symbols found? I guess `file` was wrong.
+vshcmd: &gt; start
+No symbol table loaded.  Use the "file" command.
+(gdb)
+vshcmd: &gt; # Oh yeah, no symbols. I guess do this manually.
+vshcmd: &gt; info target
+Symbols from "/&lt;directory&gt;/challenge_binary".
+Local exec file:
+  `/&lt;directory&gt;/challenge_binary', file type elf32-i386.
+  Entry point: 0x804816c
+  0x0804816c - 0x08048400 is .text
+(gdb)
+vshcmd: &gt; tbreak *0x804816c
+Temporary breakpoint 1 at 0x804816c
+(gdb)
+vshcmd: &gt; run
+Starting program: /&lt;directory&gt;/challenge_binary
 
-        Temporary breakpoint 1, 0x0804816c in ?? ()
-        (gdb)
-        vshcmd: &gt; display/i $pc
-        1: x/i $pc
-        =&gt; 0x804816c:	mov    $0x57,%edx
-        (gdb)
-        vshcmd: &gt; stepi
-          ...
-          Some time later
-          ...
-        vshcmd: &gt; stepi
-        0x08048187 in ?? ()
-        1: x/i $pc
-        =&gt; 0x8048187:	int    $0x80
-        (gdb)
-        vshcmd: &gt; stepi
-        [Inferior 1 (process 3320) exited with code 01]
-        (gdb)
+Temporary breakpoint 1, 0x0804816c in ?? ()
+(gdb)
+vshcmd: &gt; display/i $pc
+1: x/i $pc
+=&gt; 0x804816c:	mov    $0x57,%edx
+(gdb)
+vshcmd: &gt; stepi
+  ...
+  Some time later
+  ...
+vshcmd: &gt; stepi
+0x08048187 in ?? ()
+1: x/i $pc
+=&gt; 0x8048187:	int    $0x80
+(gdb)
+vshcmd: &gt; stepi
+[Inferior 1 (process 3320) exited with code 01]
+(gdb)
       </code></pre>
       Not helpful there either, just calls <code>write(2)</code> and
       <code>exit(2)</code>.
@@ -104,19 +104,19 @@
       I guess have a look at the hex again.
       <pre>
         <code>
-        vshcmd: &gt; xxd challenge_binary
-        00000000: 7f45 4c46 0101 0100 e9e4 0000 0000 0000  .ELF............
-        00000010: 0200 0300 0100 0000 6c81 0408 3b00 0000  ........l...;...
-                    ...
-        00000190: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-        000001a0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-                    ...
-        00000220: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-        00000230: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-                    ...
-        000003e0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-        000003f0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-        puzzle [15:37:05] $
+vshcmd: &gt; xxd challenge_binary
+00000000: 7f45 4c46 0101 0100 e9e4 0000 0000 0000  .ELF............
+00000010: 0200 0300 0100 0000 6c81 0408 3b00 0000  ........l...;...
+            ...
+00000190: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+000001a0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+            ...
+00000220: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000230: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+            ...
+000003e0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+000003f0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+puzzle [15:37:05] $
         </code>
       </pre>
       All zeros? What on earth is the point in that?
@@ -136,9 +136,9 @@
       we can see there is at least <em>something</em> that fits with our hunch.
       <pre>
         <code>
-          <b>M</b>y words may be obtuse.
-          <b>B</b>ut they reveal a truth.
-          <b>R</b>ead them carefully and give me a ...
+<b>M</b>y words may be obtuse.
+<b>B</b>ut they reveal a truth.
+<b>R</b>ead them carefully and give me a ...
         </code>
       </pre>
       So I guess give it a <strong>boot</strong>?
@@ -151,8 +151,8 @@
     <p>
       <pre>
         <code>
-          vshcmd: &gt; qemu-system-x86 -drive format=raw,file=challenge_binary
-          puzzle [16:08:55] $
+vshcmd: &gt; qemu-system-x86 -drive format=raw,file=challenge_binary
+puzzle [16:08:55] $
         </code>
       </pre>
       <img src="solved_puzzle.png">

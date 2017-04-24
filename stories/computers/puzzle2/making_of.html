@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="/basicstyle.css">
+    <title>Puzzle 2 - Making Of</title>
+  </head>
+  <body>
+    <header>
+      <h1>Puzzle 2 - Making Of</h1>
+    </header>
+    <p>
+      I'm not going to give a tutorial on dynamic linking in Linux here
+      (largely because I don't understand most of it), but for our purposes
+      there are only a few bits of information to know.
+      <ul>
+        <li>Library functions are called via indirection.</li>
+        <li>The main code calles a linkage stub.</li>
+        <li>Library function addresses are stored in a table.</li>
+        <li>This table is lazily filled in at run-time</li>
+      </ul>
+    </p>
+    <p>
+      When looking at a program using a disassembler, all you see is that it
+      calls the linkage stub.
+      This linkage stub jumps directly to the position stored in the function
+      table.
+      If this entry of the function table hasn't been set up yet, the stub
+      calls the dynamic loader asking it to fill in the correct address and
+      call the function while it's at it.
+      From then on the linkage stub will be able to go straight to the library
+      function.
+    </p>
+    <p>
+      Checking whether the function table has been set up yet, and defaulting
+      to jumping to the function if it has is done in a rather clever way.
+      For example let's look at the linkage stub table in our puzzle binary.
+      <pre>
+        <code>
+vshcmd: &gt; objdump -j .plt -d test_password
+
+test_password:     file format elf64-x86-64
+
+
+Disassembly of section .plt:
+
+0000000000400420 &lt;.plt&gt;:
+  400420:	ff 35 e2 0b 20 00    	pushq  0x200be2(%rip)        # 601008 &lt;_GLOBAL_OFFSET_TABLE_+0x8&gt;
+  400426:	ff 25 e4 0b 20 00    	jmpq   *0x200be4(%rip)        # 601010 &lt;_GLOBAL_OFFSET_TABLE_+0x10&gt;
+  40042c:	0f 1f 40 00          	nopl   0x0(%rax)
+
+0000000000400430 &lt;puts@plt&gt;:
+  400430:	ff 25 e2 0b 20 00    	jmpq   *0x200be2(%rip)        # 601018 &lt;puts@GLIBC_2.2.5&gt;
+  400436:	68 00 00 00 00       	pushq  $0x0
+  40043b:	e9 e0 ff ff ff       	jmpq   400420 &lt;.plt&gt;
+
+0000000000400440 &lt;strcmp@plt&gt;:
+  400440:	ff 25 da 0b 20 00    	jmpq   *0x200bda(%rip)        # 601020 &lt;strcmp@GLIBC_2.2.5&gt;
+  400446:	68 01 00 00 00       	pushq  $0x1
+  40044b:	e9 d0 ff ff ff       	jmpq   400420 &lt;.plt&gt;
+fake_plt [16:38:09] $ 
+        </code>
+      </pre>
+      Looking at the <code>strcmp@plt</code> entry, we see that it
+      unconditionally jumps to the address stored in <code>0x601020</code>.
+      Calling into the dynamic loader in order to handle setting up the offset
+      table is handled by the three instructions at the <code>.plt</code>, and
+      that is gotten to by the last instruction in each <code>@plt</code> stub.
+      That last instruction is reached because the function table in the binary
+      itself starts with the location in memory of the <code>pushq</code>
+      instruction in each corresponding stub.
+    </p>
+    <p>
+       When the stub is first called, it jumps straight to the
+       <code>pushq</code> instruction that follows it, so that the
+       initialisation is performed.
+       From then on the offset stored in the function table is the correct
+       location of the library function, so the <code>jmpq</code> instruction
+       goes there, and the initialisation code isn't ran.
+    </p>
+    <h2>Playing Tricks</h2>
+    <p>Following the discussion above, we can see that if we were to change
+    addresses in the function table as it is stored in the <em>file</em>, then
+    instead of falling through to the initialisation code, the linkage stub
+    will correctly jump to the position we define.
+    There is no change in the calling code, so as far as it knows it's calling
+    the library function, and the tricks we're playing are hidden behind the
+    linkage indirection.
+    </p>
+    <p>
+    This means that from plain disassembly of instructions no-one can tell the
+    difference between our trick binary and a normal one.
+    Moreover many people used to stepping through instructions in an executable
+    will not notice anything strange (apart from the outcome) the first time
+    they debug it, as people get accustomed to skipping over known library
+    functions.
+    </p>
+    <p>The second or third time through a debugger someone might notice that
+    <code>strcmp()</code> isn't doing what it should, and stepi into the
+    other function.</p>
+    <p>I used this by overwriting the <code>strcmp@plt</code> entry in the
+    function table with the position of a function in the main binary that has
+    the same calling signature but different functionality.
+    I gave this function a name that sounds internal <code>__exit_elf64</code>
+    and made it check that string 1 was what you get from decrementing every
+    character in string 2.
+    Hence when <code>check_password()</code> called
+    <code>strcmp("etmrhdr ", password)</code> it was actually checking that
+    <code>password</code> was equal to <code>"funsies!"</code>.</p>
+    <p>The specifics of how to do that can be seen in
+    <a href="fake_password.vsh.html">these vsh commands</a>
+      [<a href="fake_password.vsh">raw</a>]
+    that use <a href="test_password.c.html">this C program</a>
+    [<a href="test_password.c">raw</a>]</p>
+  </body>
+</html>
