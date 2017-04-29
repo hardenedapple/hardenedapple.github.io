@@ -60,8 +60,7 @@ Disassembly of section .plt:
   400440:	ff 25 da 0b 20 00    	jmpq   *0x200bda(%rip)        # 601020 &lt;strcmp@GLIBC_2.2.5&gt;
   400446:	68 01 00 00 00       	pushq  $0x1
   40044b:	e9 d0 ff ff ff       	jmpq   400420 &lt;.plt&gt;
-fake_plt [16:38:09] $ 
-        </code>
+fake_plt [16:38:09] $ </code>
       </pre>
       Looking at the <code>strcmp@plt</code> entry, we see that it
       unconditionally jumps to the address stored in <code>0x601020</code>.
@@ -114,5 +113,7 @@ fake_plt [16:38:09] $
       [<a href="fake_password.vsh">raw</a>]
     that use <a href="test_password.c.html">this C program</a>
     [<a href="test_password.c">raw</a>]</p>
+    <p>For much more along these lines see
+    <a href="../elf_override/index.html">my post on overriding dynamically linked functions</a>.</p>
   </body>
 </html>

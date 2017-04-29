@@ -243,9 +243,10 @@ int main(int argc, char *argv[])
         } else {
             puts("Sorry, that's the wrong password");
         }
+        assert(strcmp("hello", "hello") == 0);
         *strcmpgot = origstrcmp;
         // Double check we've managed to reset it.
-        assert(strcmp("hello", "hello") == 0);
+        assert(check_password("etmrhdr "));
     }
     return 0;
 }
