@@ -91,7 +91,11 @@ elf [22:19:10] $</code>
     <p>
     That worked nicely, but the code had no control over whether it was using
     the default or my alternate function.
-    I wanted more control over when my function was overwritten.</p>
+    I wanted more control over when my function was overwritten, to allow the
+    user to tell the program to switch between functions.</p>
+    <p>This would allow hypothetical use cases such as the user turning on
+    <q>debug</q> mode by sending a <code>SIGUSR1</code> or some message over a
+    communication channel.</p>
     <h3>Attempt 2</h3>
     <aside>
       <a href="datapatch.c">Test program</a>
