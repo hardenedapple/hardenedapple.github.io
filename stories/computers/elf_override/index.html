@@ -19,28 +19,31 @@
     <p>To recap some of the characteristics of dynamic linking:
     <ul>
         <li>Library functions are called via indirection.</li>
-        <li>The main code calles a linkage stub.</li>
-        <li>Library function addresses are stored in a table.</li>
+        <li>The main code calles a linkage stub in
+          <code>.plt</code>.</li>
+        <li>Library function addresses are stored in a table called
+          <code>.got.plt</code>.</li>
         <li>This table is lazily filled in at run-time</li>
     </ul>
     </p>
-    <h3>Attempt 1</h3>
+    <h3 id="directPatch">Direct Patch of Function Table</h3>
     <aside>
       <a href="direct_patch.c">Test program</a>
       <a href="direct_patch.vsh">Commands to patch</a>
     </aside>
+
     <p>This first attempt was based on noticing how the program achieved the
     lazy loading of function addresses.
     When the linkage stub is called, it acts as if the address of the libary
-    function were in its correct place.
-    It reads this value and unconditionally jumps to the position it read.
+    function is correct in the <code>.got.plt</code>.
+    It reads this value and unconditionally jumps to the position.
     In order to allow the linker to lazily fill the table in, each position is
-    initialised to point to code that calls the dynamic linker to set-up that
-    particular function table entry.</p>
+    initialised pointing at the code that calls the dynamic linker to set-up
+    that particular function table entry.</p>
     <p>With this information, we can see that if patch the binary after
     compilation so that the function table initially points to our alternate
-    function, then the dynamic linker will never be called to fill in that
-    entry and our function will be called instead.
+    function, the dynamic linker will never be called to modify that entry and
+    our function will be called instead.
     To do this, we need the position of our alternate function in memory and
     the position of the relevant function table entry in the file.
     </p>
@@ -96,14 +99,14 @@ elf [22:19:10] $</code>
     <p>This would allow hypothetical use cases such as the user turning on
     <q>debug</q> mode by sending a <code>SIGUSR1</code> or some message over a
     communication channel.</p>
-    <h3>Attempt 2</h3>
+    <h3 id="patchData">Patch a Data Variable</h3>
     <aside>
       <a href="datapatch.c">Test program</a>
       <a href="datapatch.vsh">Commands to patch</a>
     </aside>
-    <p>For my second attempt, I made a global variable in the code, designed to
-    hold the position in program memory of the <code>.got.plt</code> entry for
-    the interesting function.
+    <p>For my second attempt, I made a global variable in the code to hold the
+    position in program memory of the <code>.got.plt</code> entry for the
+    interesting function.
     <pre>
       <code>
 // Need to initialise this so it's defined in .data instead of .bss.
@@ -154,19 +157,19 @@ elf [18:30:08] $</code>
     <p>That was much better, with the code having full control over when the
     alternate function was used, but it still required patching the program
     <em>after</em> it had been compiled.</p>
-    <h3>Attempt 3</h3>
+    <h3 id="withoutPatching">Without Patching the Binary</h3>
     <aside>
       <a href="without_patch.c">Test program</a>
       <a href="without_patch.vsh">Demonstration</a>
     </aside>
     <p>All we need to know in the code is where in memory the
-    <code>strcmp</code> function table is.
+    <code>strcmp</code> function table entry is.
     We know this is encoded in the linker stub that our main code uses, that's
     where the linker stub reads its destination address from.
     If we can find the linker stub in the program, then we should be able to
     decode it and find where we need to read from ourselves.
     </p>
-    <p>It turns out, that finding the position of the relevant linker stub is
+    <p>It turns out that finding the position of the relevant linker stub is
     pretty easy.
     Recalling that all of our main code uses that linker stub instead of the
     actual function we want, we can simply ask for the address with
@@ -211,11 +214,12 @@ Disassembly of section .plt:
 playing_with_elf [11:33:08] $</code>
     </pre>
     Reading the opcodes, and comparing to
-    <a href="http://x86.renejeschke.de/html/file_module_x86_id_147.html">the instruction specification</a>
+    <a href="http://x86.renejeschke.de/html/file_module_x86_id_147.html">
+      the instruction specification</a>
     we can see this uses the <q>absolute indirect</q> form of the
     <code>jmp</code> instruction.
     There's more detail in
-    <a href="without_patch.c">the test program comments</a> but essentially
+    <a href="without_patch.c">the test program comments</a>, but essentially
     this means we need to read the 32 bit offset two bytes forwards from the
     <code>&amp;strcmp</code> stub, and add to it <code>&amp;strcmp + 6</code>.
     <pre>
@@ -243,7 +247,7 @@ strcmpptr getgot(void)
       when run on this test program.
     </aside>
     <p></p>
-    <h3>Attempt 4</h3>
+    <h3 id="readPHDR">Reading the In-Memory PHDR</h3>
     <aside>
       <a href="read_phdr.c">Test program</a>
     </aside>
@@ -328,13 +332,13 @@ Dynamic section at offset 0x1e20 contains 24 entries:
  0x0000000000000000 (NULL)               0x0
 elf_override [15:46:10] $</code>
     </pre>
-    We read this header to find where the <code>DYNAMIC</code> array is in
+    We read this header to find where the <code>_DYNAMIC</code> array is in
     memory, and it is this array that contains all the information we need to
     find the position in memory of the <code>strcmp</code> pointer.</p>
     <p>Each element in the array contains a tag that tells us what information
     this element contains (shown without their <code>DT_</code> prefixes
     above).
-    The <code>DT_JMPREL</code> tag shows us where the relocations can be
+    The <code>JMPREL</code> tag shows us where the relocations can be
     found, and we can associate each relocation with a symbol name using
     information in the <code>STRTAB</code> and <code>SYMTAB</code>
     elements.
@@ -344,8 +348,9 @@ elf_override [15:46:10] $</code>
       <code>_DYNAMIC</code> array without reading the program header.
       This impression comes from the fact that <code>nm testprog</code> shows a
       <code>_DYNAMIC</code> local symbol.
-      I don't know if I can somehow access that in the code, and haven't gotten
-      around to attempting it.
+      I don't know if I can somehow access that in the code (I guess it's
+      created by the linker after compilation), and haven't gotten around to
+      attempting it.
     </aside>
     <p>The only piece of information we need to start is where in memory the
     <code>PHDR</code> program header is located.
@@ -367,14 +372,14 @@ elf_override [15:46:10] $</code>
     calls a user specified callback with a structure specifying, among other
     things, the position of the program headers in memory.
     </p>
-    <p>Using this function, and checking for the object that specifies us by
+    <p>Using this function, and checking for the object that specifies "us" by
     comparing <code>info-&gt;dlpi_name</code> to <code>""</code>, we finally
     have all the information we need for a processor independant ability to
     overwrite our dynamic library functions.</p>
     <p>... thinking on that <code>dl_iterate_phdr()</code> function ... it
     iterates over <em>all</em> shared objects ... can we override a function
     that one of our libaries use?</p>
-    <h3>Other object files</h3>
+    <h3 id="otherLibraries">Other object files</h3>
     <aside>
           <a href="other_libraries.c">Test program</a>
           <a href="check_password.c">library</a>,
@@ -383,7 +388,7 @@ elf_override [15:46:10] $</code>
     <p>Seeing as <code>dl_iterate_phdr()</code> iterates over all loaded shared
     objects, I thought it might be possible to read the dynamic sections of
     other libraries.
-    This would open up some interesting applications, like a temporary
+    This would open up some actual applications, like a temporary
     <code>LD_PRELOAD</code> to replace commands with introspective counterparts
     when calling specific library functions.
     This appears to work, though there are a few places that my code doesn't
@@ -399,7 +404,7 @@ elf_override [15:46:10] $</code>
 vshcmd: &gt; gcc -c -W -Wall -Werror -fPIC check_password.c
 vshcmd: &gt; gcc -shared -o libcheckpass.so check_password.o
 vshcmd: &gt; readelf -l libcheckpass.so
-elf_override [17:45:30] $ elf_override [17:45:30] $ 
+elf_override [17:45:30] $ elf_override [17:45:30] $
 Elf file type is DYN (Shared object file)
 Entry point 0x580
 There are 7 program headers, starting at offset 64
@@ -424,27 +429,29 @@ Program Headers:
 
  Section to Segment mapping:
   Segment Sections...
-   00     .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rela.dyn .rela.plt .init .plt .plt.got .text .fini .rodata .eh_frame_hdr .eh_frame 
-   01     .init_array .fini_array .jcr .dynamic .got .got.plt .data .bss 
-   02     .dynamic 
-   03     .note.gnu.build-id 
-   04     .eh_frame_hdr 
-   05     
-   06     .init_array .fini_array .jcr .dynamic .got 
+   00     .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rela.dyn .rela.plt .init .plt .plt.got .text .fini .rodata .eh_frame_hdr .eh_frame
+   01     .init_array .fini_array .jcr .dynamic .got .got.plt .data .bss
+   02     .dynamic
+   03     .note.gnu.build-id
+   04     .eh_frame_hdr
+   05
+   06     .init_array .fini_array .jcr .dynamic .got
 elf_override [17:45:30] $ </code>
       </pre>
       In this output, there is no <code>PHDR</code> program header, and while
       the man page doesn't specify that this must be present if the program
       heade is to be in memory, it doesn't look like a good sign.
-      <p>On the other hand, the <code>dl_iterate_phdr()</code> man page says that
-      it can find these program headers.
-      I guess we just start trusting the implementation.</p>
+      <p>On the other hand, the <code>dl_iterate_phdr()</code> man page says it
+      can find these program headers.
+      I guess we just need a little faith.</p>
     </aside>
 
     <p>There are a bunch of minor adjustments to be made to the program
-    above working on it's own object file but I'll spare the details here.
-    If you're interested you can just download the test program from this
-    heading and diff it with the previous one.
+    <a href="#readPHDR">in the previous section</a> but I'll spare the details
+    here.
+    If you're interested you can diff the test
+    programs <a href="check_password.c">from this heading</a> and
+    <a href="read_phdr.c">the previous one</a>.
     These amount to calculating memory addresses from data structure values
     slightly differently and using the <code>info-&gt;dlpi_addr</code> member
     given to our callback by <code>dl_iterate_phdr()</code> instead of
@@ -454,10 +461,26 @@ elf_override [17:45:30] $ </code>
     library calls.</p>
     <p>I think that's pretty cool.</p>
     <aside>
-      N.B. I should just mention ... In this last program, my code doesn't
-      match how I read the manual.
-      The code was just made from inspecting the values actually recieved in
-      gdb and comparing them to the values I needed.
+      N.B. Just to reiterate: The code in this last program doesn't match how I
+      read the manual.
+      The discrepencies were fixed from inspecting the values the program read
+      using gdb and comparing them to the values I knew were needed.
+    </aside>
+    <aside>
+      <h3 id="previousWork">Update</h3>
+      After having done all this, I googled previous work and found
+      <a href="https://www.codeproject.com/Articles/70302/Redirecting-functions-in-shared-ELF-libraries?msg=4885353#xx4885353xx">
+      an article doing much the same</a> written way back in 2013.
+      It doesn't do everything the same as I have, the main differences
+      being:
+      <ol>
+        <li>The offset of a library is found with <code>(void *)*(size_t const *)(dlhandle)</code></li>
+        <li>The relocations are found by reading the library file on disk</li>
+        <li>Non <code>PIC</code> code is handled.</li>
+      </ol>
+      but the principle is the same.
+      Oh well, googling stuff is for when you actually want to get things done,
+      not just play around 😉.
     </aside>
   </body>
 </html>
