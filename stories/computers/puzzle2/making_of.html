@@ -38,8 +38,7 @@
       to jumping to the function if it has is done in a rather clever way.
       For example let's look at the linkage stub table in our puzzle binary.
       <pre>
-        <code>
-vshcmd: &gt; objdump -j .plt -d test_password
+<code><span class="PreProc">vshcmd: &gt;</span><span class="Comment"> objdump -j .plt -d test_password</span>
 
 test_password:     file format elf64-x86-64
 
@@ -60,8 +59,8 @@ Disassembly of section .plt:
   400440:	ff 25 da 0b 20 00    	jmpq   *0x200bda(%rip)        # 601020 &lt;strcmp@GLIBC_2.2.5&gt;
   400446:	68 01 00 00 00       	pushq  $0x1
   40044b:	e9 d0 ff ff ff       	jmpq   400420 &lt;.plt&gt;
-fake_plt [16:38:09] $ </code>
-      </pre>
+fake_plt [17:38:30] $
+</code></pre>
       Looking at the <code>strcmp@plt</code> entry, we see that it
       unconditionally jumps to the address stored in <code>0x601020</code>.
       Calling into the dynamic loader in order to handle setting up the offset

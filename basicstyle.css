@@ -1,3 +1,5 @@
+@import url("pylight.css");
+
 body {
     margin:40px auto;
     max-width:650px;
@@ -23,11 +25,10 @@ code {
 }
 
 pre>code {
-    font:mono;
+    font-family:monospace;
     line-height:1.0;
     white-space:pre;
     overflow:scroll;
-    tab-size:8;
 }
 
 img {
@@ -37,4 +38,8 @@ img {
 
 aside {
     color:#808080
+}
+
+.indent {
+    margin-left:5%
 }

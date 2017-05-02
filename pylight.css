@@ -1,0 +1,257 @@
+pre>code>span.Normal {
+    color:#000000;
+    background-color:#F8F8FF;
+}
+pre>code>span.Cursor {
+    background-color:#444454;
+    color:#F8F8FF;
+}
+pre>code>span.CursorLine {
+    background-color:#E4E4E4;
+}
+pre>code>span.CursorColumn {
+    background-color:#E8E8EE;
+}
+pre>code>span.DiffAdd {
+    color:#003300;
+    background-color:#DDFFDD;
+    font-style:initial;
+}
+pre>code>span.DiffChange {
+    background-color:#ececec;
+    font-style:initial;
+}
+pre>code>span.DiffText {
+    color:#000033;
+    background-color:#DDDDFF;
+    font-style:initial;
+}
+pre>code>span.DiffDelete {
+    color:#DDCCCC;
+    background-color:#FFDDDD;
+    font-style:initial;
+}
+pre>code>span.Folded {
+    background-color:#ECECEC;
+    color:#808080;
+    font-weight:bold;
+}
+pre>code>span.vimFold {
+    background-color:#ECECEC;
+    color:#808080;
+    font-weight:bold;
+}
+pre>code>span.FoldColumn {
+    background-color:#ECECEC;
+    color:#808080;
+    font-weight:bold;
+}
+pre>code>span.LineNr {
+    color:#959595;
+    background-color:#ECECEC;
+    font-style:initial;
+}
+pre>code>span.NonText {
+    color:#808080;
+    background-color:#ECECEC;
+}
+pre>code>span.Folded {
+    color:#808080;
+    background-color:#ECECEC;
+    font-weight:bold;
+}
+pre>code>span.FoldeColumn {
+    color:#808080;
+    background-color:#ECECEC;
+    font-weight:bold;
+}
+pre>code>span.VertSplit {
+    background-color:#bbbbbb;
+    color:#bbbbbb;
+    font-style:initial;
+}
+pre>code>span.StatusLine {
+    background-color:#bbbbbb;
+    color:#404040;
+    font-weight:bold;
+}
+pre>code>span.StatusLineNC {
+    background-color:#d4d4d4;
+    color:#404040;
+    font-style:italic;
+}
+pre>code>span.ModeMsg {
+    color:#990000;
+}
+pre>code>span.MoreMsg {
+    color:#990000;
+}
+pre>code>span.Title {
+    color:#ef5939;
+}
+pre>code>span.WarningMsg {
+    color:#ef5939;
+}
+pre>code>span.SpecialKey {
+    color:#177F80;
+    font-style:italic;
+}
+pre>code>span.MatchParen {
+    background-color:#cdcdfd;
+    color:#000000;
+}
+pre>code>span.Underlined {
+    color:#000000;
+    text-decoration:underline;
+}
+pre>code>span.Directory {
+    color:#990000;
+}
+pre>code>span.Visual {
+    color:inherit;
+    background-color:#aaddff;
+    font-style:initial;
+}
+pre>code>span.VisualNOS {
+    color:#FFFFFF;
+    background-color:#204a87;
+    font-style:initial;
+}
+pre>code>span.IncSearch {
+    background-color:#cdcdfd;
+    color:inherit;
+    font-style:italic;
+}
+pre>code>span.Search {
+    background-color:#cdcdfd;
+    color:inherit;
+    font-style:italic;
+}
+pre>code>span.Ignore {
+    color:#808080;
+}
+pre>code>span.Identifier {
+    color:#af0000;
+}
+pre>code>span.PreProc {
+    color:#af0000;
+    font-weight:bold;
+}
+pre>code>span.Include {
+    color:#87005F;
+    font-weight:bold;
+}
+pre>code>span.Comment {
+    color:#999988;
+    font-style:italic;
+}
+pre>code>span.Constant {
+    color:#177F80;
+    font-style:initial;
+}
+pre>code>span.String {
+    color:#D7AF00;
+}
+pre>code>span.Function {
+    color:#af0000;
+    font-style:initial;
+}
+pre>code>span.Statement {
+    color:#080887;
+    font-style:initial;
+}
+pre>code>span.Type {
+    color:#080887;
+    font-style:initial;
+}
+pre>code>span.Number {
+    color:#1C9898;
+}
+pre>code>span.Special {
+    color:#ff5f5f;
+    font-weight:bold;
+}
+pre>code>span.Error {
+    background-color:#f8f8ff;
+    color:#ff1100;
+}
+pre>code>span.Todo {
+    background-color:#f8f8ff;
+    color:#585858;
+    text-decoration:underline;
+}
+pre>code>span.Label {
+    color:#000000;
+    font-weight:bold;
+}
+pre>code>span.StorageClass {
+    color:#080887;
+    font-style:initial;
+}
+pre>code>span.Structure {
+    color:#008700;
+}
+pre>code>span.Operator {
+    color:#87005F;
+    font-style:initial;
+}
+pre>code>span.TypeDef {
+    color:#000000;
+    font-weight:bold;
+}
+pre>code>span.pythonExceptions {
+    color:#af0000;
+    font-style:initial;
+}
+pre>code>span.pythonFunction {
+    color:#af0000;
+    font-style:initial;
+}
+pre>code>span.pythonBuiltin {
+    color:#008700;
+    font-style:italic;
+}
+pre>code>span.vimCommentTitle {
+    color:#999988;
+    font-weight:bold;
+}
+pre>code>span.cppType {
+    color:#ff0087;
+}
+pre>code>span.WildMenu {
+    color:#7fbdff;
+    background-color:#425c78;
+    font-style:initial;
+}
+pre>code>span.Pmenu {
+    background-color:#808080;
+    color:#ffffff;
+    font-weight:bold;
+}
+pre>code>span.PmenuSel {
+    background-color:#cdcdfd;
+    color:#000000;
+    font-style:italic;
+}
+pre>code>span.PmenuSbar {
+    background-color:#000000;
+    color:#444444;
+}
+pre>code>span.PmenuThumb {
+    background-color:#aaaaaa;
+    color:#aaaaaa;
+}
+pre>code>span.TabLine {
+    color:#404040;
+    background-color:#dddddd;
+    font-style:initial;
+}
+pre>code>span.TabLineFill {
+    color:#404040;
+    background-color:#dddddd;
+    font-style:initial;
+}
+pre>code>span.TabLineSel {
+    color:#404040;
+    font-weight:bold;
+}

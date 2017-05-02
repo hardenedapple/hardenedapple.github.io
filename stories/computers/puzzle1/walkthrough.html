@@ -18,7 +18,7 @@
       <p>How I imagined people would figure my puzzle out ...</p>
     </header>
     <aside>
-      The command line stuff is copied straight out of a
+      Commands are copied straight out of a
       <a href="https://github.com/hardenedapple/vsh">neovim plugin I use</a>:
       <ul>
         <li><code>vshcmd: &gt; </code> lines are commands.</li>
@@ -30,18 +30,17 @@
       So we have a binary ... let's have a look at what it is:
       <pre>
         <code>
-vshcmd: &gt; xxd -p -r Puzzle.bin &gt; challenge_binary
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> xxd -p -r Puzzle.bin &gt; challenge_binary</span>
 puzzle [15:32:08] $
-vshcmd: &gt; file challenge_binary
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> file challenge_binary</span>
 challenge_binary: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped, with debug_info
 puzzle [15:33:13] $
-vshcmd: &gt; chmod +x ./challenge_binary &amp; ./challenge_binary
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> chmod +x ./challenge_binary &amp; ./challenge_binary</span>
 My words may be obtuse.
 But they reveal a truth.
 Read them carefully and give me a ...
 puzzle [15:33:14] $
-vshcmd: &gt;
-        </code>
+<span class="PreProc">vshcmd: &gt;</span></code>
       </pre>
       Huh. Not particularly useful, and pretty strange ...
       <q><code>stripped, with debug_info</code></q> what's that mean?
@@ -53,46 +52,45 @@ vshcmd: &gt;
     <p>
       I guess run it in a debugger?
       <pre><code>
-vshcmd: &gt; gdb challenge_binary
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> gdb challenge_binary</span>
 Reading symbols from challenge_binary...(no debugging symbols found)...done.
 (gdb)
-vshcmd: &gt; # No debugging symbols found? I guess `file` was wrong.
-vshcmd: &gt; start
-No symbol table loaded.  Use the "file" command.
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> # No debugging symbols found? I guess `file` was wrong.</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> start</span>
+No symbol table loaded.  Use the &quot;file&quot; command.
 (gdb)
-vshcmd: &gt; # Oh yeah, no symbols. I guess do this manually.
-vshcmd: &gt; info target
-Symbols from "/&lt;directory&gt;/challenge_binary".
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> # Oh yeah, no symbols. I guess do this manually.</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> info target</span>
+Symbols from &quot;/&lt;directory&gt;/challenge_binary&quot;.
 Local exec file:
   `/&lt;directory&gt;/challenge_binary', file type elf32-i386.
   Entry point: 0x804816c
   0x0804816c - 0x08048400 is .text
 (gdb)
-vshcmd: &gt; tbreak *0x804816c
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> tbreak *0x804816c</span>
 Temporary breakpoint 1 at 0x804816c
 (gdb)
-vshcmd: &gt; run
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> run</span>
 Starting program: /&lt;directory&gt;/challenge_binary
 
 Temporary breakpoint 1, 0x0804816c in ?? ()
 (gdb)
-vshcmd: &gt; display/i $pc
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> display/i $pc</span>
 1: x/i $pc
-=&gt; 0x804816c:	mov    $0x57,%edx
+=&gt; 0x804816c:   mov    $0x57,%edx
 (gdb)
-vshcmd: &gt; stepi
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> stepi</span>
   ...
   Some time later
   ...
-vshcmd: &gt; stepi
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> stepi</span>
 0x08048187 in ?? ()
 1: x/i $pc
-=&gt; 0x8048187:	int    $0x80
+=&gt; 0x8048187:   int    $0x80
 (gdb)
-vshcmd: &gt; stepi
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> stepi</span>
 [Inferior 1 (process 3320) exited with code 01]
-(gdb)
-      </code></pre>
+(gdb)</code></pre>
       Not helpful there either, just calls <code>write(2)</code> and
       <code>exit(2)</code>.
       There <em>is</em> a lot of <code>.text</code> segment that goes unused:
@@ -104,7 +102,7 @@ vshcmd: &gt; stepi
       I guess have a look at the hex again.
       <pre>
         <code>
-vshcmd: &gt; xxd challenge_binary
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> xxd challenge_binary</span>
 00000000: 7f45 4c46 0101 0100 e9e4 0000 0000 0000  .ELF............
 00000010: 0200 0300 0100 0000 6c81 0408 3b00 0000  ........l...;...
             ...
@@ -116,8 +114,7 @@ vshcmd: &gt; xxd challenge_binary
             ...
 000003e0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
 000003f0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-puzzle [15:37:05] $
-        </code>
+puzzle [15:37:05] $</code>
       </pre>
       All zeros? What on earth is the point in that?
     </p>
@@ -151,9 +148,8 @@ puzzle [15:37:05] $
     <p>
       <pre>
         <code>
-vshcmd: &gt; qemu-system-x86 -drive format=raw,file=challenge_binary
-puzzle [16:08:55] $
-        </code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> qemu-system-x86 -drive format=raw,file=challenge_binary</span>
+puzzle [16:08:55] $</code>
       </pre>
       <img src="solved_puzzle.png">
     <p>
