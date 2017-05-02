@@ -36,40 +36,33 @@ typedef enum {
     DI_JMPREL, DI_SIZE
 } dynindex;
 
-// Returns the symbol that has matches the name "target"
-// Modifies that symbol so that the st_shndx member doesn't contain the normal
-// section header table index, but instead contains the index in the symbol
-// table of this symbol.
-// XXX This is a bit of a hack -- I just can't be bothered to neaten it.
-Elf64_Sym find_symbol(const char * const target,
+uint16_t find_sym_index(const char * const target,
                       const Elf64_Sym * const symtab, const size_t num_symbols,
                       const char * const strtab, const size_t strsz)
 {
-    for (const Elf64_Sym * cursym = symtab;
+    const Elf64_Sym *cursym;
+    for (cursym = symtab;
          cursym < symtab + num_symbols;
          cursym += 1) {
         assert(cursym->st_name <= strsz);
         if (strcmp(strtab + cursym->st_name, target) == 0) {
-            Elf64_Sym retval = *cursym;
-            retval.st_shndx = cursym - symtab;
-            return retval;
+            break;
         }
     }
-    return (Elf64_Sym) {0};
+    // Not found == num_symbols, found == index
+    return cursym - symtab;
 }
 
-// n.b. takes a modified version of an Elf64_Sym structure like above.
-strcmpptr find_rela_addr(const Elf64_Sym target,
+strcmpptr find_rela_addr(const uint16_t sym_index,
         const Elf64_Rela * const rela, const size_t relasz)
 {
     for (const Elf64_Rela * currel = rela;
          (void *)currel < (void *)rela + relasz;
          currel += 1) {
         // printf("SYM index: %d\n", ELF64_R_SYM(currel->r_info));
-        if (ELF64_R_SYM(currel->r_info) == target.st_shndx) {
+        if (ELF64_R_SYM(currel->r_info) == sym_index) {
             // XXX If this addend isn't 0 then the .got.plt is structured in a
-            // way I don't understand, fail and alert me why so I can
-            // investigate.
+            // way I don't understand, fail and alert me so I can investigate.
             assert(currel->r_addend == 0);
             return (strcmpptr) currel->r_offset;
         }
@@ -77,26 +70,19 @@ strcmpptr find_rela_addr(const Elf64_Sym target,
     return NULL;
 }
 
-strcmpptr getgot(const void * const phdr)
+// Because the PHDR member isn't in the relocatable object
+strcmpptr getgot(const void * const phdr, const ptrdiff_t base_offset)
 {
     // Initialise the curhdr structure to something other than the terminating
     // PT_NULL header.
     Elf64_Phdr curhdr = {0};
+    // Just anything not PT_NULL or PT_DYNAMIC
     curhdr.p_type = PT_PHDR;
 
-    // Iterate through each program header.
-    ptrdiff_t base_offset = 0;
     for (Elf64_Phdr *hdrptr = (Elf64_Phdr *)phdr;
          curhdr.p_type != PT_NULL && curhdr.p_type != PT_DYNAMIC;
          hdrptr += 1 , curhdr = *hdrptr) {
-        if (curhdr.p_type == PT_PHDR) {
-            // TODO not 100% sure on this calculation.
-            //      See Man elf, the d_ptr member of the Elf\d\d_Dyn structure
-            //      for what information I have.
-            //      Says "address should be computed based on the original file
-            //      value and memory base address."
-            base_offset = curhdr.p_vaddr - curhdr.p_offset;
-        }
+        // Iterate through each program header.
     }
     if (curhdr.p_type != PT_DYNAMIC) {
         return NULL;
@@ -145,16 +131,19 @@ strcmpptr getgot(const void * const phdr)
     assert(foundtags[DI_SYMENT]);
     assert(foundtags[DI_STRTAB]);
     assert(foundtags[DI_STRSZ]);
-    Elf64_Sym strcmpsym = find_symbol("strcmp",
+    const uint16_t strcmp_strindx = find_sym_index("strcmp",
             (Elf64_Sym *)(tagarray[DI_SYMTAB].d_un.d_ptr + base_offset),
             tagarray[DI_SYMENT].d_un.d_val,
             (char *)(tagarray[DI_STRTAB].d_un.d_ptr + base_offset),
             tagarray[DI_STRSZ].d_un.d_val);
+    if (strcmp_strindx >= (tagarray[DI_SYMENT].d_un.d_val)) {
+        return NULL;
+    }
 
     // Find strcmp() .got.plt entry using the relocations array.
     assert(foundtags[DI_PLTREL]);
     if (tagarray[DI_PLTREL].d_un.d_val == DT_RELA) {
-        return find_rela_addr(strcmpsym,
+        return find_rela_addr(strcmp_strindx,
                 (Elf64_Rela *)(tagarray[DI_JMPREL].d_un.d_ptr + base_offset),
                 tagarray[DI_PLTRELSZ].d_un.d_val);
     } else if (tagarray[DI_PLTREL].d_un.d_val == DT_REL) {
@@ -184,12 +173,17 @@ int check_password(const char* password)
     return 0;
 }
 
-int print_object_info(struct dl_phdr_info *info,
-        size_t size, void *data)
+struct callback_data {
+    uintptr_t addr;
+    void *phdr;
+};
+
+int get_object_phdr(struct dl_phdr_info *info, size_t size, void *data)
 {
+    struct callback_data *c = (struct callback_data *)data;
     if (info->dlpi_name[0] == '\0') {
-        // This is our current object.
-        *(void **)data = info->dlpi_phdr;
+        c->phdr = info->dlpi_phdr;
+        c->addr = info->dlpi_addr;
         return 1;
     }
     return 0;
@@ -197,8 +191,8 @@ int print_object_info(struct dl_phdr_info *info,
 
 int main(int argc, char *argv[])
 {
-    void *phdr = NULL;
-    dl_iterate_phdr(print_object_info, &phdr);
+    struct callback_data cbdata;
+    dl_iterate_phdr(get_object_phdr, &cbdata);
 
     if (argc != 2) {
         puts("Usage: ./<binary> password");
@@ -207,8 +201,7 @@ int main(int argc, char *argv[])
     if (check_password(argv[1])) {
         puts("Congratulations!!!");
     } else {
-        // Hard code for now -- use linker flags so that this works.
-        strcmpptr strcmpgot = getgot(phdr);
+        strcmpptr strcmpgot = getgot(cbdata.phdr, cbdata.addr);
         int (*origstrcmp) (const char *, const char *) = *strcmpgot;
         *strcmpgot = altstrcmp;
         if (check_password(argv[1])) {

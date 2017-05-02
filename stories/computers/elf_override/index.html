@@ -335,13 +335,56 @@ elf_override [15:46:10] $</code>
     We read this header to find where the <code>_DYNAMIC</code> array is in
     memory, and it is this array that contains all the information we need to
     find the position in memory of the <code>strcmp</code> pointer.</p>
-    <p>Each element in the array contains a tag that tells us what information
-    this element contains (shown without their <code>DT_</code> prefixes
-    above).
+    <aside>
+      N.B. While I can't find any mention of it in <code>man elf</code>, it
+      seems that the <code>PHDR</code> program header is not included in the
+      memory image.
+      For both hard-coding the value seen in the file and using the
+      <code>dl_iterate_phdr()</code> function, we see no <code>PHDR</code>
+      header at that address.
+    </aside>
+    <p>Each element in the <code>_DYNAMIC</code> array contains a tag that
+    tells us what information this element contains (shown without their
+    <code>DT_</code> prefixes above).
     The <code>JMPREL</code> tag shows us where the relocations can be
     found, and we can associate each relocation with a symbol name using
     information in the <code>STRTAB</code> and <code>SYMTAB</code>
     elements.
+    <pre>
+      <code> 
+<span class="Type">uint16_t</span> find_sym_index(<span class="StorageClass">const</span> <span class="Type">char</span> * <span class="StorageClass">const</span> target,
+                      <span class="StorageClass">const</span> Elf64_Sym * <span class="StorageClass">const</span> symtab, <span class="StorageClass">const</span> <span class="Type">size_t</span> num_symbols,
+                      <span class="StorageClass">const</span> <span class="Type">char</span> * <span class="StorageClass">const</span> strtab, <span class="StorageClass">const</span> <span class="Type">size_t</span> strsz)
+{
+    <span class="StorageClass">const</span> Elf64_Sym *cursym;
+    <span class="Statement">for</span> (cursym = symtab;
+         cursym &lt; symtab + num_symbols;
+         cursym += <span class="Number">1</span>) {
+        assert(cursym-&gt;st_name &lt;= strsz);
+        <span class="Statement">if</span> (strcmp(strtab + cursym-&gt;st_name, target) == <span class="Number">0</span>) {
+            <span class="Statement">break</span>;
+        }
+    }
+    <span class="Comment">// Not found == num_symbols, found == index</span>
+    <span class="Statement">return</span> cursym - symtab;
+}
+
+strcmpptr find_rela_addr(<span class="StorageClass">const</span> <span class="Type">uint16_t</span> sym_index,
+        <span class="StorageClass">const</span> Elf64_Rela * <span class="StorageClass">const</span> rela, <span class="StorageClass">const</span> <span class="Type">size_t</span> relasz)
+{
+    <span class="Statement">for</span> (<span class="StorageClass">const</span> Elf64_Rela * currel = rela;
+         (<span class="Type">void</span> *)currel &lt; (<span class="Type">void</span> *)rela + relasz;
+         currel += <span class="Number">1</span>) {
+        <span class="Statement">if</span> (ELF64_R_SYM(currel-&gt;r_info) == sym_index) {
+            <span class="Comment">// </span><span class="Todo">XXX</span><span class="Comment"> If this addend isn't 0 then the .got.plt is structured in a</span>
+            <span class="Comment">// way I don't understand, fail and alert me so I can investigate.</span>
+            assert(currel-&gt;r_addend == <span class="Number">0</span>);
+            <span class="Statement">return</span> (strcmpptr) currel-&gt;r_offset;
+        }
+    }
+    <span class="Statement">return</span> <span class="Constant">NULL</span>;
+}</code>
+    </pre>
     </p>
     <aside>
       N.B. I have the feeling that we could find the position of the
@@ -352,7 +395,7 @@ elf_override [15:46:10] $</code>
       created by the linker after compilation), and haven't gotten around to
       attempting it.
     </aside>
-    <p>The only piece of information we need to start is where in memory the
+    <p>The only piece of information we need is where in memory the
     <code>PHDR</code> program header is located.
     From observation it <strong>appears</strong> that it always starts at
     <code>0x400040</code>, and this value works when hard-coded into the above
@@ -375,7 +418,31 @@ elf_override [15:46:10] $</code>
     <p>Using this function, and checking for the object that specifies "us" by
     comparing <code>info-&gt;dlpi_name</code> to <code>""</code>, we finally
     have all the information we need for a processor independant ability to
-    overwrite our dynamic library functions.</p>
+    overwrite our dynamic library functions.
+    <pre>
+      <code>
+<span class="Structure">struct</span> callback_data {
+    <span class="Type">uintptr_t</span> addr;
+    <span class="Type">void</span> *phdr;
+};
+
+<span class="Type">int</span> get_object_phdr(<span class="Structure">struct</span> dl_phdr_info *info, <span class="Type">size_t</span> size, <span class="Type">void</span> *data)
+{
+    <span class="Structure">struct</span> callback_data *c = (<span class="Structure">struct</span> callback_data *)data;
+    <span class="Statement">if</span> (info-&gt;dlpi_name[<span class="Number">0</span>] == <span class="Special">'\0'</span>) {
+        c-&gt;phdr = info-&gt;dlpi_phdr;
+        c-&gt;addr = info-&gt;dlpi_addr;
+        <span class="Statement">return</span> <span class="Number">1</span>;
+    }
+    <span class="Statement">return</span> <span class="Number">0</span>;
+}</code>
+
+  ...
+<code>
+<span class="Structure">struct</span> callback_data cbdata;
+dl_iterate_phdr(get_object_phdr, &amp;cbdata);</code>
+    </pre>
+    </p>
     <p>... thinking on that <code>dl_iterate_phdr()</code> function ... it
     iterates over <em>all</em> shared objects ... can we override a function
     that one of our libaries use?</p>
@@ -383,7 +450,7 @@ elf_override [15:46:10] $</code>
     <aside>
           <a href="other_libraries.c">Test program</a>,
           <a href="check_password.c">library</a>,
-          <a href="other_lib_demo.vsh">demo</a>.
+          <a href="other_libraries.vsh">demo</a>.
         </aside>
     <p>Seeing as <code>dl_iterate_phdr()</code> iterates over all loaded shared
     objects, I thought it might be possible to read the dynamic sections of
@@ -447,15 +514,16 @@ elf_override [17:45:30] $</code>
     </aside>
 
     <p>There are a bunch of minor adjustments to be made to the program
-    <a href="#readPHDR">in the previous section</a> but I'll spare the details
-    here.
+    <a href="#readPHDR">in the previous section</a> that amount to accounting
+    for offsets from the base address of the dynamic libary.
+    There is also <em>removing</em> the addition of a base offset from pointers
+    in the <code>Elf64_Dyn</code> structures.
+    On reading the manual I don't know if this should have been used in the
+    first place or if the fact that this offset is always 0 in my test binary
+    is hiding a bug.
     If you're interested you can diff the test
-    programs <a href="check_password.c">from this heading</a> and
-    <a href="read_phdr.c">the previous one</a>.
-    These amount to calculating memory addresses from data structure values
-    slightly differently and using the <code>info-&gt;dlpi_addr</code> member
-    given to our callback by <code>dl_iterate_phdr()</code> instead of
-    calculating it ourselves (which should have been done before anyway).</p>
+    programs <a href="check_password.c">from this section</a> and
+    <a href="read_phdr.c">the previous one</a>.</p>
     <p>Suffice to say that with a little tweaking of the previous program, we get
     to temporarily overwrite what external functions a dynamically loaded
     library calls.</p>
