@@ -8,36 +8,38 @@
     <title>Puzzle 2 - Making Of</title>
   </head>
   <body>
+    <main role="main">
     <header>
       <h1>Puzzle 2 - Making Of</h1>
     </header>
     <p>
-      I'm not going to give a tutorial on dynamic linking in Linux here
-      (largely because I don't understand most of it), but for our purposes
-      there are only a few bits of information to know.
-      <ul>
-        <li>Library functions are called via indirection.</li>
-        <li>The main code calles a linkage stub.</li>
-        <li>Library function addresses are stored in a table.</li>
-        <li>This table is lazily filled in at run-time</li>
-      </ul>
+    I'm not going to give a tutorial on dynamic linking in Linux here
+    (largely because I don't understand most of it), but for our purposes
+    there are only a few bits of information to know.
+    </p>
+    <ul>
+      <li>Library functions are called via indirection.</li>
+      <li>The main code calles a linkage stub.</li>
+      <li>Library function addresses are stored in a table.</li>
+      <li>This table is lazily filled in at run-time</li>
+    </ul>
+    <p>
+    When looking at a program using a disassembler, all you see is that it
+    calls the linkage stub.
+    This linkage stub jumps directly to the position stored in the function
+    table.
+    If this entry of the function table hasn't been set up yet, the stub
+    calls the dynamic loader asking it to fill in the correct address and
+    call the function while it's at it.
+    From then on the linkage stub will be able to go straight to the library
+    function.
     </p>
     <p>
-      When looking at a program using a disassembler, all you see is that it
-      calls the linkage stub.
-      This linkage stub jumps directly to the position stored in the function
-      table.
-      If this entry of the function table hasn't been set up yet, the stub
-      calls the dynamic loader asking it to fill in the correct address and
-      call the function while it's at it.
-      From then on the linkage stub will be able to go straight to the library
-      function.
+    Checking whether the function table has been set up yet, and defaulting
+    to jumping to the function if it has is done in a rather clever way.
+    For example let's look at the linkage stub table in our puzzle binary.
     </p>
-    <p>
-      Checking whether the function table has been set up yet, and defaulting
-      to jumping to the function if it has is done in a rather clever way.
-      For example let's look at the linkage stub table in our puzzle binary.
-      <pre>
+    <pre>
 <code><span class="PreProc">vshcmd: &gt;</span><span class="Comment"> objdump -j .plt -d test_password</span>
 
 test_password:     file format elf64-x86-64
@@ -60,23 +62,24 @@ Disassembly of section .plt:
   400446:	68 01 00 00 00       	pushq  $0x1
   40044b:	e9 d0 ff ff ff       	jmpq   400420 &lt;.plt&gt;
 fake_plt [17:38:30] $
-</code></pre>
-      Looking at the <code>strcmp@plt</code> entry, we see that it
-      unconditionally jumps to the address stored in <code>0x601020</code>.
-      Calling into the dynamic loader in order to handle setting up the offset
-      table is handled by the three instructions at the <code>.plt</code>, and
-      that is gotten to by the last instruction in each <code>@plt</code> stub.
-      That last instruction is reached because the function table in the binary
-      itself starts with the location in memory of the <code>pushq</code>
-      instruction in each corresponding stub.
+    </code></pre>
+    <p>
+    Looking at the <code>strcmp@plt</code> entry, we see that it
+    unconditionally jumps to the address stored in <code>0x601020</code>.
+    Calling into the dynamic loader in order to handle setting up the offset
+    table is handled by the three instructions at the <code>.plt</code>, and
+    that is gotten to by the last instruction in each <code>@plt</code> stub.
+    That last instruction is reached because the function table in the binary
+    itself starts with the location in memory of the <code>pushq</code>
+    instruction in each corresponding stub.
     </p>
     <p>
-       When the stub is first called, it jumps straight to the
-       <code>pushq</code> instruction that follows it, so that the
-       initialisation is performed.
-       From then on the offset stored in the function table is the correct
-       location of the library function, so the <code>jmpq</code> instruction
-       goes there, and the initialisation code isn't ran.
+    When the stub is first called, it jumps straight to the
+    <code>pushq</code> instruction that follows it, so that the
+    initialisation is performed.
+    From then on the offset stored in the function table is the correct
+    location of the library function, so the <code>jmpq</code> instruction
+    goes there, and the initialisation code isn't ran.
     </p>
     <h2>Playing Tricks</h2>
     <p>Following the discussion above, we can see that if we were to change
@@ -108,10 +111,11 @@ fake_plt [17:38:30] $
     <code>strcmp("etmrhdr ", password)</code> it was actually checking that
     <code>password</code> was equal to <code>"funsies!"</code>.</p>
     <p>The specifics of how to do that can be seen in
-      <!-- TODO allow view files online -->
-      <a href="fake_password.vsh">these vsh commands</a>
+    <!-- TODO allow view files online -->
+    <a href="fake_password.vsh">these vsh commands</a>
     that use <a href="test_password.c">this C program</a></p>
     <p>For much more along these lines see
     <a href="../elf_override/index.html">my post on overriding dynamically linked functions</a>.</p>
+    </main>
   </body>
 </html>

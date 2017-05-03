@@ -8,9 +8,10 @@
     <title>hardenedapple: about</title>
   </head>
   <body>
+  <main role="main">
     <header>
       <h1>About this Website</h1>
-     <aside>In case you were wondering: why so plain?</aside>
+      <aside>In case you were wondering: why so plain?</aside>
     </header>
     <p>I'm trying to learn about web technologies at the same time as making
     some posts.
@@ -36,96 +37,111 @@
     features already implemented could be implemented better using the new
     technology.</p>
     <h2>Missing Features</h2>
-    <h4 id="htmlDRY">Deduplicating HTML</h4>
-    <div class="indent">
-      <h5>HTML & CSS</h5>
-      <p>As far as I can tell, there is no way to include snippets of HTML
-      instead of manually adding the same <code>&lt;head&gt;</code> in each HTML
-      file of the page.</p>
-      <h5>With Compilation</h5>
-      <p>This would be trivial with the C Pre-Processor, and I assume with any
-      static website generator too.</p>
-    </div>
-    <h4 id="postCategorisation">Categorising Posts</h4>
-    <div class="indent">
-      <h5>HTML & CSS</h5>
-      <p>With such a small number of posts, categorisation by hierarchical file
-      system is more than sufficient.
-      This may change when I write more posts.</p>
-    </div>
-    <h4 id="indexing">Automatic Indexing</h4>
-    <div class="indent">
-      <p>I currently have to manually index my posts on the main page,
-      this is error-prone and tedious (or at least would be if I had a lot of
-      posts).
-      I would like a way to automatically index them, either by pointing to an
-      index node from the main page or by automatically including an index in the
-      main page.</p>
-      <h5>HTML & CSS</h5>
-      <p>While this is possible by specifying directory indexing in the HTTP
-      server settings, <code>github.io</code> doesn't allow configuration of the
-      server (which is fair enough).</p>
-      <h5>With Compilation</h5>
-      <p>This is the obvious way to combine all posts in some category into a
-      HTML list.</p>
-    </div>
-    <h4 id="codeSnippets">Insertion of Code Snippets</h4>
-    <div class="indent">
-      <h5>HTML & CSS</h5>
-      <p>While I'm sacrificing the ability to view a file in the browser so I
-      only have my program code defined in one place
-      (<a href="#browserViewCode">see here</a>), including code snippets in
-      the web page is important enough to make the opposite tradeoff.</p>
-      <p>I do need a per-snippet compilation step where I HTML escape the code
-      from one file before inserting it into the HTML file.</p>
-      <h5>With Compilation</h5>
-      <p>In a perfect world I would be able to label positions in my source file,
-      and have that automatically inserted into my page.
-      This would combine the manual per-snippet compilation step into the already
-      present compilation step for generating the site.</p>
-    </div>
-    <h4 id="syntaxHighlighting">Syntax Highlighting of Code Snippets</h4>
-    <div class="indent">
-      <p>I have a reasonable amount of code in my posts, it's nice to highlight
-      them according to syntax.</p>
-      <h5>HTML & CSS</h5>
-      <p>As there is already a per-snippet compilation step, it takes little
-      effort to make it include syntax highlighting.
-      This can be done with a few programs online, or with the
-      <code>:TOhtml</code> vim command.
-      As I'm already copying the text from a vim buffer, the <code>:TOhtml</code>
-      command is the obvious way to work.</p>
-      <h5>With Compilation</h5>
-      <p>With a compilation step, the syntax highlighting could be applied in the
-      same manner, but rather than applying the vim specific syntax items it
-      would make more sense to use some plugin.</p>
-      <h5>With Javascript</h5>
-      <p>I have seen quite a few javascript libraries to syntax highlight code,
-      but I'm not sure what their benefits are over using the compilation step to
-      mark the syntax items with a <code>&lt;span&gt;</code> tag.</p>
-    </div>
-    <h4 id="browserViewCode">View Code in Browser</h4>
-    <div class="indent">
-      <h5>HTML & CSS</h5>
-      <p>This is perfectly viable by customising the server to specify the
-      mime-type of my source code files as <code>text/plain</code>, but again I
-      don't have control over the server configuration.</p>
-      <p>Even with customisation of the server, there would be no syntax
-      highlighting, so this wouldn't be perfect.</p>
-      <p>I could manually convert the source files to HTML files, or plain text,
-      but I then have to make sure to update the derived file every time the
-      canonical file changes.</p>
-      <h5>With Compilation</h5>
-      <p>If there is already a compilation step, then I can put the work of
-      converting the canonical file to a derived file in there, and everything
-      will be fine.</p>
-    </div>
-    <h4 id="navigationSidebar">Navigation Sidebar</h4>
-    <div class="indent">
-      <p>I would like a sidebar for ease of navigation around the site.
-      At the moment the links between pages are reasonably sparse.
-      </p>
-      <p>I haven't yet looked into how to do this.</p>
-    </div>
+    <section id="htmlDRY">
+      <h4>Deduplicating HTML</h4>
+      <div class="indent">
+        <h5>HTML & CSS</h5>
+        <p>As far as I can tell, there is no way to include snippets of HTML
+        instead of manually adding the same <code>&lt;head&gt;</code> in each HTML
+        file of the page.</p>
+        <h5>With Compilation</h5>
+        <p>This would be trivial with the C Pre-Processor, and I assume with any
+        static website generator too.</p>
+      </div>
+    </section>
+    <section id="postCategorisation">
+      <h4>Categorising Posts</h4>
+      <div class="indent">
+        <h5>HTML & CSS</h5>
+        <p>With such a small number of posts, categorisation by hierarchical file
+        system is more than sufficient.
+        This may change when I write more posts.</p>
+      </div>
+    </section>
+    <section id="indexing">
+      <h4>Automatic Indexing</h4>
+      <div class="indent">
+        <p>I currently have to manually index my posts on the main page,
+        this is error-prone and tedious (or at least would be if I had a lot of
+        posts).
+        I would like a way to automatically index them, either by pointing to an
+        index node from the main page or by automatically including an index in the
+        main page.</p>
+        <h5>HTML & CSS</h5>
+        <p>While this is possible by specifying directory indexing in the HTTP
+        server settings, <code>github.io</code> doesn't allow configuration of the
+        server (which is fair enough).</p>
+        <h5>With Compilation</h5>
+        <p>This is the obvious way to combine all posts in some category into a
+        HTML list.</p>
+      </div>
+    </section>
+    <section id="codeSnippets">
+      <h4>Insertion of Code Snippets</h4>
+      <div class="indent">
+        <h5>HTML & CSS</h5>
+        <p>While I'm sacrificing the ability to view a file in the browser so I
+        only have my program code defined in one place
+        (<a href="#browserViewCode">see here</a>), including code snippets in
+        the web page is important enough to make the opposite tradeoff.</p>
+        <p>I do need a per-snippet compilation step where I HTML escape the code
+        from one file before inserting it into the HTML file.</p>
+        <h5>With Compilation</h5>
+        <p>In a perfect world I would be able to label positions in my source file,
+        and have that automatically inserted into my page.
+        This would combine the manual per-snippet compilation step into the already
+        present compilation step for generating the site.</p>
+      </div>
+    </section>
+    <section id="syntaxHighlighting">
+      <h4>Syntax Highlighting of Code Snippets</h4>
+      <div class="indent">
+        <p>I have a reasonable amount of code in my posts, it's nice to highlight
+        them according to syntax.</p>
+        <h5>HTML & CSS</h5>
+        <p>As there is already a per-snippet compilation step, it takes little
+        effort to make it include syntax highlighting.
+        This can be done with a few programs online, or with the
+        <code>:TOhtml</code> vim command.
+        As I'm already copying the text from a vim buffer, the <code>:TOhtml</code>
+        command is the obvious way to work.</p>
+        <h5>With Compilation</h5>
+        <p>With a compilation step, the syntax highlighting could be applied in the
+        same manner, but rather than applying the vim specific syntax items it
+        would make more sense to use some plugin.</p>
+        <h5>With Javascript</h5>
+        <p>I have seen quite a few javascript libraries to syntax highlight code,
+        but I'm not sure what their benefits are over using the compilation step to
+        mark the syntax items with a <code>&lt;span&gt;</code> tag.</p>
+      </div>
+    </section>
+    <section id="browserViewCode">
+      <h4>View Code in Browser</h4>
+      <div class="indent">
+        <h5>HTML & CSS</h5>
+        <p>This is perfectly viable by customising the server to specify the
+        mime-type of my source code files as <code>text/plain</code>, but again I
+        don't have control over the server configuration.</p>
+        <p>Even with customisation of the server, there would be no syntax
+        highlighting, so this wouldn't be perfect.</p>
+        <p>I could manually convert the source files to HTML files, or plain text,
+        but I then have to make sure to update the derived file every time the
+        canonical file changes.</p>
+        <h5>With Compilation</h5>
+        <p>If there is already a compilation step, then I can put the work of
+        converting the canonical file to a derived file in there, and everything
+        will be fine.</p>
+      </div>
+    </section>
+    <section id="navigationSidebar">
+      <h4>Navigation Sidebar</h4>
+      <div class="indent">
+        <p>I would like a sidebar for ease of navigation around the site.
+        At the moment the links between pages are reasonably sparse.
+        </p>
+        <p>I haven't yet looked into how to do this.</p>
+      </div>
+    </section>
+  </main>
   </body>
 </html>

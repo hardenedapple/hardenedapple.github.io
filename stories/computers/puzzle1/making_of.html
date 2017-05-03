@@ -8,30 +8,32 @@
     <title>Puzzle - Making Of</title>
   </head>
   <body>
+    <main role="main">
     <header>
       <h1>Puzzle - Making Of</h1>
     </header>
     <p>
-      Just some links to the assembly files and the commands I ran to make
-      &amp; test the binary. The <code>.vsh</code> file is from a
-      <a href="https://github.com/hardenedapple/vsh">neovim plugin I use</a>.
-      It contains the shell commands to run to make this binary, and should be
-      easy to understand:
-      <ul>
-        <li><code>vshcmd: &gt; </code> lines are commands.</li>
-        <li><code>vshcmd: &gt; # </code> lines are comments.</li>
-        <li>Everything else is output from the pty</li>
-        <li>Output from the pty includes the bash prompt.</li>
-      </ul>
+    Just some links to the assembly files and the commands I ran to make
+    &amp; test the binary. The <code>.vsh</code> file is from a
+    <a href="https://github.com/hardenedapple/vsh">neovim plugin I use</a>.
+    It contains the shell commands to run to make this binary, and should be
+    easy to understand:
+    <ul>
+      <li><code>vshcmd: &gt; </code> lines are commands.</li>
+      <li><code>vshcmd: &gt; # </code> lines are comments.</li>
+      <li>Everything else is output from the pty</li>
+      <li>Output from the pty includes the bash prompt.</li>
+    </ul>
 
     </p>
     <p>
-      <ul>
-        <!-- TODO allow view online -->
-        <li><a href="elfhdr.s">Assembly to make the ELF file</a></li>
-        <li><a href="mbr_message.s">Assembly for the MBR</a></li>
-        <li><a href="creating_file.vsh">VSH file (i.e. shell commands) making/checking the binary</a></li>
-      </ul>
+    <ul>
+      <!-- TODO allow view online -->
+      <li><a href="elfhdr.s">Assembly to make the ELF file</a></li>
+      <li><a href="mbr_message.s">Assembly for the MBR</a></li>
+      <li><a href="creating_file.vsh">VSH file (i.e. shell commands) making/checking the binary</a></li>
+    </ul>
     </p>
+    </main>
   </body>
 </html>

@@ -8,6 +8,7 @@
     <title>ELF function override</title>
   </head>
   <body>
+    <main role="main">
     <header>
       <h1>ELF function override</h1>
     </header>
@@ -18,48 +19,51 @@
     no real use case. It's just fun.</p>
     <p>To recap some of the characteristics of dynamic linking:
     <ul>
-        <li>Library functions are called via indirection.</li>
-        <li>The main code calles a linkage stub in
-          <code>.plt</code>.</li>
-        <li>Library function addresses are stored in a table called
-          <code>.got.plt</code>.</li>
-        <li>This table is lazily filled in at run-time</li>
+      <li>Library functions are called via indirection.</li>
+      <li>The main code calles a linkage stub in
+        <code>.plt</code>.</li>
+      <li>Library function addresses are stored in a table called
+        <code>.got.plt</code>.</li>
+      <li>This table is lazily filled in at run-time</li>
     </ul>
-    </p>
-    <h3 id="directPatch">Direct Patch of Function Table</h3>
-    <aside>
-      <a href="direct_patch.c">Test program</a>
-      <a href="direct_patch.vsh">Commands to patch</a>
-    </aside>
+    <section id="directPatch">
+      <h3>Direct Patch of Function Table</h3>
+      <aside>
+        <a href="direct_patch.c">Test program</a>
+        <a href="direct_patch.vsh">Commands to patch</a>
+      </aside>
 
-    <p>This first attempt was based on noticing how the program achieved the
-    lazy loading of function addresses.
-    When the linkage stub is called, it acts as if the address of the libary
-    function is correct in the <code>.got.plt</code>.
-    It reads this value and unconditionally jumps to the position.
-    In order to allow the linker to lazily fill the table in, each position is
-    initialised pointing at the code that calls the dynamic linker to set-up
-    that particular function table entry.</p>
-    <p>With this information, we can see that if patch the binary after
-    compilation so that the function table initially points to our alternate
-    function, the dynamic linker will never be called to modify that entry and
-    our function will be called instead.
-    To do this, we need the position of our alternate function in memory and
-    the position of the relevant function table entry in the file.
-    </p>
-    <p>
-    The position of the alternate function may be found after compilation with
-    <pre>
+      <p>This first attempt was based on noticing how the program achieved the
+      lazy loading of function addresses.
+      When the linkage stub is called, it acts as if the address of the libary
+      function is correct in the <code>.got.plt</code>.
+      It reads this value and unconditionally jumps to the position.
+      In order to allow the linker to lazily fill the table in, each position is
+      initialised pointing at the code that calls the dynamic linker to set-up
+      that particular function table entry.</p>
+      <p>With this information, we can see that if patch the binary after
+      compilation so that the function table initially points to our alternate
+      function, the dynamic linker will never be called to modify that entry and
+      our function will be called instead.
+      To do this, we need the position of our alternate function in memory and
+      the position of the relevant function table entry in the file.
+      </p>
+      <p>
+      The position of the alternate function may be found after compilation with
+      </p>
+      <pre>
       <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> readelf -s testprog | grep altstrcmp</span>
     48: 0000000000601038     8 OBJECT  GLOBAL DEFAULT   24 altstrcmp
 fake_plt [22:19:05] $ </code>
-    </pre>
-    Similarly, the position of the function table entry in the file may be
-    found by finding the position of the dynamic relocations, and subtracting
-    the difference between the memory address and file offset of the
-    <code>.got.plt</code> section.
-    <pre>
+      </pre>
+      <p>
+      Similarly, the position of the function table entry in the file may be
+      found by finding the position of the dynamic relocations, and subtracting
+      the difference between the memory address and file offset of the
+      <code>.got.plt</code> section.
+      </p>
+      <pre>
       <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> readelf -r testprog</span>
 
@@ -79,35 +83,40 @@ fake_plt [22:16:47] $
 elf [18:19:50] $
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> offset=$(python -c </span><span class="String">'print(0x601020 - (0x601000 - 0x1000))'</span><span class="Comment">)</span>
 elf [18:21:42] $ </code>
-    </pre>
-    Using this information, we can patch the binary with
-    <pre>
+      </pre>
+      <p>
+      Using this information, we can patch the binary with
+      </p>
+      <pre>
       <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> python -c </span><span class="String">'import sys; sys.stdout.buffer.write(b&quot;\x38\x10\x60&quot;)'</span><span class="Comment">  | dd of=testprog bs=1 seek=$offset conv=notrunc</span>
 3+0 records in
 3+0 records out
 3 bytes copied, 0.0732023 s, 0.0 kB/s
 elf [22:19:10] $ </code>
-    </pre>
-    and it will use <code>altstrcmp</code> instead of <code>strcmp</code>.
-    </p>
-    <p>
-    That worked nicely, but the code had no control over whether it was using
-    the default or my alternate function.
-    I wanted more control over when my function was overwritten, to allow the
-    user to tell the program to switch between functions.</p>
-    <p>This would allow hypothetical use cases such as the user turning on
-    <q>debug</q> mode by sending a <code>SIGUSR1</code> or some message over a
-    communication channel.</p>
-    <h3 id="patchData">Patch a Data Variable</h3>
-    <aside>
-      <a href="datapatch.c">Test program</a>
-      <a href="datapatch.vsh">Commands to patch</a>
-    </aside>
-    <p>For my second attempt, I made a global variable in the code to hold the
-    position in program memory of the <code>.got.plt</code> entry for the
-    interesting function.
-    <pre>
+      </pre>
+      <p>
+      and it will use <code>altstrcmp</code> instead of <code>strcmp</code>.
+      </p>
+      <p>
+      That worked nicely, but the code had no control over whether it was using
+      the default or my alternate function.
+      I wanted more control over when my function was overwritten, to allow the
+      user to tell the program to switch between functions.</p>
+      <p>This would allow hypothetical use cases such as the user turning on
+      <q>debug</q> mode by sending a <code>SIGUSR1</code> or some message over a
+      communication channel.</p>
+    </section>
+    <section id="patchData">
+      <h3>Patch a Data Variable</h3>
+      <aside>
+        <a href="datapatch.c">Test program</a>
+        <a href="datapatch.vsh">Commands to patch</a>
+      </aside>
+      <p>For my second attempt, I made a global variable in the code to hold the
+      position in program memory of the <code>.got.plt</code> entry for the
+      interesting function.
+      <pre>
       <code>
 <span class="Comment">// Need to initialise this so it's defined in .data instead of .bss.</span>
 <span class="Comment">// That means we can modify it in the file with `dd`.</span>
@@ -128,15 +137,15 @@ elf [22:19:10] $ </code>
     <span class="Comment">// Double check we've reset it.</span>
     assert(strcmp(<span class="String">&quot;hello&quot;</span>, <span class="String">&quot;hello&quot;</span>) == <span class="Number">0</span>);
 }</code>
-    </pre>
-    I then found the position of that initialised variable in the program file
-    by getting the position in memory with
-    <code>readelf -s testprog | grep strcmpgot</code> and adjusting by the
-    difference between the file offset and memory address of the
-    <code>.data</code> section.
-    With this address, I patched the value of that variable in the compiled
-    binary with the position of the relevant function table entry in memory.
-    <pre>
+      </pre>
+      I then found the position of that initialised variable in the program file
+      by getting the position in memory with
+      <code>readelf -s testprog | grep strcmpgot</code> and adjusting by the
+      difference between the file offset and memory address of the
+      <code>.data</code> section.
+      With this address, I patched the value of that variable in the compiled
+      binary with the position of the relevant function table entry in memory.
+      <pre>
       <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> python -c </span><span class="String">'import sys; sys.stdout.buffer.write(b&quot;\x20\x10\x60&quot;)'</span><span class="Comment">  | dd of=testprog bs=1 seek=$offset conv=notrunc</span>
 3+0 records in
@@ -153,36 +162,39 @@ elf [18:30:07] $
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> ./testprog </span><span class="String">'hello'</span>
 Sorry, that's the wrong password
 elf [18:30:08] $ </code>
-    </pre>
-    <p>That was much better, with the code having full control over when the
-    alternate function was used, but it still required patching the program
-    <em>after</em> it had been compiled.</p>
-    <h3 id="withoutPatching">Without Patching the Binary</h3>
-    <aside>
-      <a href="without_patch.c">Test program</a>
-      <a href="without_patch.vsh">Demonstration</a>
-    </aside>
-    <p>All we need to know in the code is where in memory the
-    <code>strcmp</code> function table entry is.
-    We know this is encoded in the linker stub that our main code uses, that's
-    where the linker stub reads its destination address from.
-    If we can find the linker stub in the program, then we should be able to
-    decode it and find where we need to read from ourselves.
-    </p>
-    <p>It turns out that finding the position of the relevant linker stub is
-    pretty easy.
-    Recalling that all of our main code uses that linker stub instead of the
-    actual function we want, we can simply ask for the address with
-    <code>&amp;strcmp</code> in our main program.</p>
-    <pre>
+      </pre>
+      <p>That was much better, with the code having full control over when the
+      alternate function was used, but it still required patching the program
+      <em>after</em> it had been compiled.</p>
+    </section>
+    <section id="withoutPatching">
+      <h3>Without Patching the Binary</h3>
+      <aside>
+        <a href="without_patch.c">Test program</a>
+        <a href="without_patch.vsh">Demonstration</a>
+      </aside>
+      <p>All we need to know in the code is where in memory the
+      <code>strcmp</code> function table entry is.
+      We know this is encoded in the linker stub that our main code uses, that's
+      where the linker stub reads its destination address from.
+      If we can find the linker stub in the program, then we should be able to
+      decode it and find where we need to read from ourselves.
+      </p>
+      <p>It turns out that finding the position of the relevant linker stub is
+      pretty easy.
+      Recalling that all of our main code uses that linker stub instead of the
+      actual function we want, we can simply ask for the address with
+      <code>&amp;strcmp</code> in our main program.</p>
+      <pre>
       <code><span class="Type">uint8_t</span> *pltaddr = (<span class="Type">uint8_t</span> *)&amp;strcmp;</code>
-    </pre>
-    <p>
-    Finding the position of the code from the instructions we see there is a
-    little more tricky.
-    In order to do this, we disassemble the linker stub, and view the
-    instruction opcodes it uses.
-    <pre>
+      </pre>
+      <p>
+      Finding the position of the code from the instructions we see there is a
+      little more tricky.
+      In order to do this, we disassemble the linker stub, and view the
+      instruction opcodes it uses.
+      </p>
+      <pre>
       <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> objdump -d testprog -j .plt</span>
 
@@ -211,17 +223,19 @@ Disassembly of section .plt:
   400496:   68 02 00 00 00          pushq  $0x2
   40049b:   e9 c0 ff ff ff          jmpq   400460 &lt;.plt&gt;
 playing_with_elf [11:33:08] $</code>
-    </pre>
-    Reading the opcodes, and comparing to
-    <a href="http://x86.renejeschke.de/html/file_module_x86_id_147.html">
-      the instruction specification</a>
-    we can see this uses the <q>absolute indirect</q> form of the
-    <code>jmp</code> instruction.
-    There's more detail in
-    <a href="without_patch.c">the test program comments</a>, but essentially
-    this means we need to read the 32 bit offset two bytes forwards from the
-    <code>&amp;strcmp</code> stub, and add to it <code>&amp;strcmp + 6</code>.
-    <pre>
+      </pre>
+      <p>
+      Reading the opcodes, and comparing to
+      <a href="http://x86.renejeschke.de/html/file_module_x86_id_147.html">
+        the instruction specification</a>
+      we can see this uses the <q>absolute indirect</q> form of the
+      <code>jmp</code> instruction.
+      There's more detail in
+      <a href="without_patch.c">the test program comments</a>, but essentially
+      this means we need to read the 32 bit offset two bytes forwards from the
+      <code>&amp;strcmp</code> stub, and add to it <code>&amp;strcmp + 6</code>.
+      </p>
+      <pre>
       <code>
 <span class="Structure">typedef</span> <span class="Type">int</span> (**strcmpptr) (<span class="StorageClass">const</span> <span class="Type">char</span> *, <span class="StorageClass">const</span> <span class="Type">char</span> *);
 strcmpptr getgot(<span class="Type">void</span>)
@@ -233,35 +247,37 @@ strcmpptr getgot(<span class="Type">void</span>)
     offset += (<span class="Type">uintptr_t</span>)(pltaddr + <span class="Number">6</span>);
     <span class="Statement">return</span> (strcmpptr)offset;
 }</code>
-    </pre>
-    After compilation and test, we see we now have a working example that
-    doesn't require patching the binary!
-    It is still very brittle, relying on decoding an instruction (which is
-    clearly processor specific), can we do anything about that?
-    </p>
-    <aside>
-      n.b. I expect, but haven't checked, that the same thing can be done on
-      <em>other</em> object files using <code>dlopen() / dlsym()</code>.
-      I do know that <code>dlsym()</code> gives the address of the linker stub
-      when run on this test program.
-    </aside>
-    <p></p>
-    <h3 id="readPHDR">Reading the In-Memory PHDR</h3>
-    <aside>
-      <a href="read_phdr.c">Test program</a>,
-      <a href="read_phdr.vsh">demo</a>.
-    </aside>
-    <p></p>
-    <p>If we want to find the address of the <code>strcmp</code> function
-    pointer entry without relying on architecture specifics, then we're going
-    to have to use the ELF data structures that were made specifically for that
-    reason.
-    We could do this by reading our own file, but in the ELF man page it
-    mentions the <code>PT_PHDR</code> header that we can use instead.</p>
-    <p>This header tells the loader where to put the program header in memory,
-    and with that information in memory, we have easy access for reading and
-    parsing.
-    <pre>
+      </pre>
+      <p>
+      After compilation and test, we see we now have a working example that
+      doesn't require patching the binary!
+      It is still very brittle, relying on decoding an instruction (which is
+      clearly processor specific), can we do anything about that?
+      </p>
+      <aside>
+        n.b. I expect, but haven't checked, that the same thing can be done on
+        <em>other</em> object files using <code>dlopen() / dlsym()</code>.
+        I do know that <code>dlsym()</code> gives the address of the linker stub
+        when run on this test program.
+      </aside>
+    </section>
+    <section id="readPHDR">
+      <h3>Reading the In-Memory PHDR</h3>
+      <aside>
+        <a href="read_phdr.c">Test program</a>,
+        <a href="read_phdr.vsh">demo</a>.
+      </aside>
+      <p>If we want to find the address of the <code>strcmp</code> function
+      pointer entry without relying on architecture specifics, then we're going
+      to have to use the ELF data structures that were made specifically for that
+      reason.
+      We could do this by reading our own file, but in the ELF man page it
+      mentions the <code>PT_PHDR</code> header that we can use instead.</p>
+      <p>This header tells the loader where to put the program header in memory,
+      and with that information in memory, we have easy access for reading and
+      parsing.
+      </p>
+      <pre>
       <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> readelf -d -l testprog</span>
 
@@ -331,26 +347,28 @@ Dynamic section at offset 0x1e20 contains 24 entries:
  0x000000006ffffff0 (VERSYM)             0x400400
  0x0000000000000000 (NULL)               0x0
 elf_override [15:46:10] $</code>
-    </pre>
-    We read this header to find where the <code>_DYNAMIC</code> array is in
-    memory, and it is this array that contains all the information we need to
-    find the position in memory of the <code>strcmp</code> pointer.</p>
-    <aside>
-      N.B. While I can't find any mention of it in <code>man elf</code>, it
-      seems that the <code>PHDR</code> program header is not included in the
-      memory image.
-      For both hard-coding the value seen in the file and using the
-      <code>dl_iterate_phdr()</code> function, we see no <code>PHDR</code>
-      header at that address.
-    </aside>
-    <p>Each element in the <code>_DYNAMIC</code> array contains a tag that
-    tells us what information this element contains (shown without their
-    <code>DT_</code> prefixes above).
-    The <code>JMPREL</code> tag shows us where the relocations can be
-    found, and we can associate each relocation with a symbol name using
-    information in the <code>STRTAB</code> and <code>SYMTAB</code>
-    elements.
-    <pre>
+      </pre>
+      <p>
+      We read this header to find where the <code>_DYNAMIC</code> array is in
+      memory, and it is this array that contains all the information we need to
+      find the position in memory of the <code>strcmp</code> pointer.</p>
+      <aside>
+        N.B. While I can't find any mention of it in <code>man elf</code>, it
+        seems that the <code>PHDR</code> program header is not included in the
+        memory image.
+        For both hard-coding the value seen in the file and using the
+        <code>dl_iterate_phdr()</code> function, we see no <code>PHDR</code>
+        header at that address.
+      </aside>
+      <p>Each element in the <code>_DYNAMIC</code> array contains a tag that
+      tells us what information this element contains (shown without their
+      <code>DT_</code> prefixes above).
+      The <code>JMPREL</code> tag shows us where the relocations can be
+      found, and we can associate each relocation with a symbol name using
+      information in the <code>STRTAB</code> and <code>SYMTAB</code>
+      elements.
+      </p>
+      <pre>
       <code> 
 <span class="Type">uint16_t</span> find_sym_index(<span class="StorageClass">const</span> <span class="Type">char</span> * <span class="StorageClass">const</span> target,
                       <span class="StorageClass">const</span> Elf64_Sym * <span class="StorageClass">const</span> symtab, <span class="StorageClass">const</span> <span class="Type">size_t</span> num_symbols,
@@ -384,42 +402,42 @@ strcmpptr find_rela_addr(<span class="StorageClass">const</span> <span class="Ty
     }
     <span class="Statement">return</span> <span class="Constant">NULL</span>;
 }</code>
-    </pre>
-    </p>
-    <aside>
-      N.B. I have the feeling that we could find the position of the
-      <code>_DYNAMIC</code> array without reading the program header.
-      This impression comes from the fact that <code>nm testprog</code> shows a
-      <code>_DYNAMIC</code> local symbol.
-      I don't know if I can somehow access that in the code (I guess it's
-      created by the linker after compilation), and haven't gotten around to
-      attempting it.
-    </aside>
-    <p>The only piece of information we need is where in memory the
-    <code>PHDR</code> program header is located.
-    From observation it <strong>appears</strong> that it always starts at
-    <code>0x400040</code>, and this value works when hard-coded into the above
-    program, but I haven't found that specified anywhere.
-    I believe it's possible to specify that value with a linker script
-    <a href="https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/4/html/Using_ld_the_GNU_Linker/phdrs.html">
-      by using the PHDRS command</a>,
-    but according to that link once you specify one program header you have to
-    specify them all.
-    That's getting to lose a lot of flexibility, and I refuse to resort to
-    reading the file, so we'll try another tack...
-    </p>
-    <p>When working on a <code>GNU</code> system, we have some extra niceties
-    that can come in handy sometimes one of these is the
-    <code>dl_iterate_phdr()</code> function.
-    This iterates over each of the programs currently loaded shared objects and
-    calls a user specified callback with a structure specifying, among other
-    things, the position of the program headers in memory.
-    </p>
-    <p>Using this function, and checking for the object that specifies "us" by
-    comparing <code>info-&gt;dlpi_name</code> to <code>""</code>, we finally
-    have all the information we need for a processor independant ability to
-    overwrite our dynamic library functions.
-    <pre>
+      </pre>
+      <aside>
+        N.B. I have the feeling that we could find the position of the
+        <code>_DYNAMIC</code> array without reading the program header.
+        This impression comes from the fact that <code>nm testprog</code> shows a
+        <code>_DYNAMIC</code> local symbol.
+        I don't know if I can somehow access that in the code (I guess it's
+        created by the linker after compilation), and haven't gotten around to
+        attempting it.
+      </aside>
+      <p>The only piece of information we need is where in memory the
+      <code>PHDR</code> program header is located.
+      From observation it <strong>appears</strong> that it always starts at
+      <code>0x400040</code>, and this value works when hard-coded into the above
+      program, but I haven't found that specified anywhere.
+      I believe it's possible to specify that value with a linker script
+      <a href="https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/4/html/Using_ld_the_GNU_Linker/phdrs.html">
+        by using the PHDRS command</a>,
+      but according to that link once you specify one program header you have to
+      specify them all.
+      That's getting to lose a lot of flexibility, and I refuse to resort to
+      reading the file, so we'll try another tack...
+      </p>
+      <p>When working on a <code>GNU</code> system, we have some extra niceties
+      that can come in handy sometimes one of these is the
+      <code>dl_iterate_phdr()</code> function.
+      This iterates over each of the programs currently loaded shared objects and
+      calls a user specified callback with a structure specifying, among other
+      things, the position of the program headers in memory.
+      </p>
+      <p>Using this function, and checking for the object that specifies "us" by
+      comparing <code>info-&gt;dlpi_name</code> to <code>""</code>, we finally
+      have all the information we need for a processor independant ability to
+      overwrite our dynamic library functions.
+      </p>
+      <pre>
       <code>
 <span class="Structure">struct</span> callback_data {
     <span class="Type">uintptr_t</span> addr;
@@ -441,17 +459,17 @@ strcmpptr find_rela_addr(<span class="StorageClass">const</span> <span class="Ty
 <code>
 <span class="Structure">struct</span> callback_data cbdata;
 dl_iterate_phdr(get_object_phdr, &amp;cbdata);</code>
-    </pre>
-    </p>
-    <p>... thinking on that <code>dl_iterate_phdr()</code> function ... it
-    iterates over <em>all</em> shared objects ... can we override a function
-    that one of our libaries use?</p>
+      </pre>
+      <p>... thinking on that <code>dl_iterate_phdr()</code> function ... it
+      iterates over <em>all</em> shared objects ... can we override a function
+      that one of our libaries use?</p>
+    </section>
     <h3 id="otherLibraries">Other object files</h3>
     <aside>
-          <a href="other_libraries.c">Test program</a>,
-          <a href="check_password.c">library</a>,
-          <a href="other_libraries.vsh">demo</a>.
-        </aside>
+      <a href="other_libraries.c">Test program</a>,
+      <a href="check_password.c">library</a>,
+      <a href="other_libraries.vsh">demo</a>.
+    </aside>
     <p>Seeing as <code>dl_iterate_phdr()</code> iterates over all loaded shared
     objects, I thought it might be possible to read the dynamic sections of
     other libraries.
@@ -539,21 +557,24 @@ elf_override [17:45:30] $</code>
       The discrepencies were fixed from inspecting the values the program read
       using gdb and comparing them to the values I knew were needed.
     </aside>
-    <aside>
-      <h3 id="previousWork">Update</h3>
-      After having done all this, I googled previous work and found
-      <a href="https://www.codeproject.com/Articles/70302/Redirecting-functions-in-shared-ELF-libraries?msg=4885353#xx4885353xx">
-      an article doing much the same</a> written way back in 2013.
-      It doesn't do everything the same as I have, the main differences
-      being:
-      <ol>
-        <li>The offset of a library is found with <code>(void *)*(size_t const *)(dlhandle)</code></li>
-        <li>The relocations are found by reading the library file on disk</li>
-        <li>Non <code>PIC</code> code is handled.</li>
-      </ol>
-      but the principle is the same.
-      Oh well, googling stuff is for when you actually want to get things done,
-      not just play around 😉.
-    </aside>
+    <section id="previousWork">
+      <aside>
+        <h3>Update</h3>
+        After having done all this, I googled previous work and found
+        <a href="https://www.codeproject.com/Articles/70302/Redirecting-functions-in-shared-ELF-libraries?msg=4885353#xx4885353xx">
+          an article doing much the same</a> written way back in 2013.
+        It doesn't do everything the same as I have, the main differences
+        being:
+        <ol>
+          <li>The offset of a library is found with <code>(void *)*(size_t const *)(dlhandle)</code></li>
+          <li>The relocations are found by reading the library file on disk</li>
+          <li>Non <code>PIC</code> code is handled.</li>
+        </ol>
+        but the principle is the same.
+        Oh well, googling stuff is for when you actually want to get things done,
+        not just play around 😉.
+      </aside>
+    </section>
+    </main>
   </body>
 </html>

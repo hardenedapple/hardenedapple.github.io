@@ -13,6 +13,7 @@
     <title>Puzzle Walkthrough</title>
   </head>
   <body>
+    <main role="main">
     <header>
       <h1>Walkthrough</h1>
       <p>How I imagined people would figure my puzzle out ...</p>
@@ -27,8 +28,9 @@
       </ul>
     </aside>
     <p>
-      So we have a binary ... let's have a look at what it is:
-      <pre>
+    So we have a binary ... let's have a look at what it is:
+    </p>
+    <pre>
         <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> xxd -p -r Puzzle.bin &gt; challenge_binary</span>
 puzzle [15:32:08] $
@@ -41,17 +43,17 @@ But they reveal a truth.
 Read them carefully and give me a ...
 puzzle [15:33:14] $
 <span class="PreProc">vshcmd: &gt;</span></code>
-      </pre>
-      Huh. Not particularly useful, and pretty strange ...
-      <q><code>stripped, with debug_info</code></q> what's that mean?
-      <p>
-        But it's a Linux x86 binary that prints out a string. That's piece of
-        info number 1.
-      </p>
-    </p>
+    </pre>
     <p>
-      I guess run it in a debugger?
-      <pre><code>
+    Huh. Not particularly useful, and pretty strange ...
+    <q><code>stripped, with debug_info</code></q> what's that mean?
+    </p>
+    <p>But it's a Linux x86 binary that prints out a string. That's piece of
+    info number 1.</p>
+    <p>
+    I guess run it in a debugger?
+    </p>
+    <pre><code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> gdb challenge_binary</span>
 Reading symbols from challenge_binary...(no debugging symbols found)...done.
 (gdb)
@@ -91,16 +93,18 @@ Temporary breakpoint 1, 0x0804816c in ?? ()
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> stepi</span>
 [Inferior 1 (process 3320) exited with code 01]
 (gdb)</code></pre>
-      Not helpful there either, just calls <code>write(2)</code> and
-      <code>exit(2)</code>.
-      There <em>is</em> a lot of <code>.text</code> segment that goes unused:
-      <code>0x0804816c - 0x08048400</code> is <code>.text</code>, while we
-      leave at <code>0x8048187</code>. There are no branch points, so it can't
-      be instructions for the binary. Why is it there?
+    <p>
+    Not helpful there either, just calls <code>write(2)</code> and
+    <code>exit(2)</code>.
+    There <em>is</em> a lot of <code>.text</code> segment that goes unused:
+    <code>0x0804816c - 0x08048400</code> is <code>.text</code>, while we
+    leave at <code>0x8048187</code>. There are no branch points, so it can't
+    be instructions for the binary. Why is it there?
     </p>
     <p>
-      I guess have a look at the hex again.
-      <pre>
+    I guess have a look at the hex again.
+    </p>
+    <pre>
         <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> xxd challenge_binary</span>
 00000000: 7f45 4c46 0101 0100 e9e4 0000 0000 0000  .ELF............
@@ -115,50 +119,54 @@ Temporary breakpoint 1, 0x0804816c in ?? ()
 000003e0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
 000003f0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
 puzzle [15:37:05] $</code>
-      </pre>
-      All zeros? What on earth is the point in that?
+    </pre>
+    <p>
+    All zeros? What on earth is the point in that?
     </p>
     <p>
-      But it's not <em>all</em> zeros.
-    <p/>
-    <p>
-      It's more obvious when running
-      <code>objdump -D challenge_binary</code>, but at offset <code>0x1fe</code>
-      in the file there are the bytes <code>0x55 0xaa</code>.
-      If we google that byte sequence we find references to the MBR -- the code
-      run after the BIOS has finished on an x86 machine.
+    But it's not <em>all</em> zeros.
     </p>
     <p>
-      The binary has the bootable marker, and looking back at that opaque clue
-      we can see there is at least <em>something</em> that fits with our hunch.
-      <pre>
+    It's more obvious when running
+    <code>objdump -D challenge_binary</code>, but at offset <code>0x1fe</code>
+    in the file there are the bytes <code>0x55 0xaa</code>.
+    If we google that byte sequence we find references to the MBR -- the code
+    run after the BIOS has finished on an x86 machine.
+    </p>
+    <p>
+    The binary has the bootable marker, and looking back at that opaque clue
+    we can see there is at least <em>something</em> that fits with our hunch.
+    </p>
+    <pre>
         <code>
 <b>M</b>y words may be obtuse.
 <b>B</b>ut they reveal a truth.
 <b>R</b>ead them carefully and give me a ...
         </code>
-      </pre>
-      So I guess give it a <strong>boot</strong>?
+    </pre>
+    <p>
+    So I guess give it a <strong>boot</strong>?
     </p>
     <p>
-      ... google how to boot an image ...
-      <br>
-      ... few false starts due to unfamiliar program ...
+    ... google how to boot an image ...
+    <br>
+    ... few false starts due to unfamiliar program ...
     </p>
-    <p>
-      <pre>
+    <pre>
         <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> qemu-system-x86 -drive format=raw,file=challenge_binary</span>
 puzzle [16:08:55] $</code>
-      </pre>
-      <img src="solved_puzzle.png">
+    </pre>
+    <img src="solved_puzzle.png"
+    alt="Qemu virtual machine booted using the file shows the text 'Fun!'.">
     <p>
-      Yay! The password is <code>Fun!</code>.
+    Yay! The password is <code>Fun!</code>.
     </p>
     <p>
-      So yeah, it's a binary that is both a working x86 Linux ELF file, and a
-      working MBR.
+    So yeah, it's a binary that is both a working x86 Linux ELF file, and a
+    working MBR.
     </p>
+    </main>
   </body>
 </html>
 
