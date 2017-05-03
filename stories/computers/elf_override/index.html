@@ -518,19 +518,24 @@ elf_override [17:45:30] $</code>
     for offsets from the base address of the dynamic libary.
     There is also <em>removing</em> the addition of a base offset from pointers
     in the <code>Elf64_Dyn</code> structures.
-    On reading the manual I don't know if this should have been used in the
-    first place or if the fact that this offset is always 0 in my test binary
-    is hiding a bug.
-    If you're interested you can diff the test
-    programs <a href="check_password.c">from this section</a> and
-    <a href="read_phdr.c">the previous one</a>.</p>
-    <p>Suffice to say that with a little tweaking of the previous program, we get
+    On reading the manual it appears that these should be there, but the manual
+    refers to the format of the <strong>file</strong>, not the format of the
+    program header in memory.
+    From this insight I believe the fact the base offset is always 0 in my
+    previous program is hiding a bug.
+    </p>
+    <p>If you want to know the full extent of the differences you can diff the
+    test programs <a href="check_password.c">from this section</a> and
+    <a href="read_phdr.c">the previous one</a>.
+    Suffice to say that with a little tweaking of the previous program, we get
     to temporarily overwrite what external functions a dynamically loaded
     library calls.</p>
     <p>I think that's pretty cool.</p>
     <aside>
       N.B. Just to reiterate: The code in this last program doesn't match how I
       read the manual.
+      This is perfectly fine because the manual only specifies the data format
+      of the file, and not the data format in memory.
       The discrepencies were fixed from inspecting the values the program read
       using gdb and comparing them to the values I knew were needed.
     </aside>

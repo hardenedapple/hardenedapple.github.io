@@ -159,6 +159,11 @@ strcmpptr getgot(const void * const phdr, const ptrdiff_t base_offset)
     //
     // This implies to me that I should add base_offset to d_un.d_ptr, but that
     // gives the wrong values...
+    //
+    // However, the value of the dynamic tags seen when in program memory are
+    // already the value seen in file added to the base_offset.
+    // I guess despite there not being any relocation specified in the file,
+    // the loader must perform relocations anyway.
     const uint16_t strcmp_strindx = find_sym_index("strcmp",
             (Elf64_Sym *)(tagarray[DI_SYMTAB].d_un.d_ptr),
             tagarray[DI_SYMENT].d_un.d_val,
