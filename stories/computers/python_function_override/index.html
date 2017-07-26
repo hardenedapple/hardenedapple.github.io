@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="/basicstyle.css">
+    <title>Python on-the-fly modification</title>
+  </head>
+  <body>
+    <main role="main">
+    <header>
+      <h1>Python on-the-fly function update</h1>
+      <aside>
+        Everything here is python 3.6 specific.
+      </aside>
+    </header>
+    <p>
+    I recently decided to learn a little about the CPython implementation in
+    preparation for a future project.
+    During the learning process I realised you have much more control over the
+    internals of Python than I originally believed, and decided to see what I
+    could get away with.
+    </p>
+    <p>
+    As is usual in these circumstances, I started thinking about hypothetical
+    debugging tools, and more specifically how one would go about implementing
+    some of the features of DTrace in Python.</p>
+    <p>One of my favourite features of DTrace is the absolute minimal overhead
+    of the tool.
+    As an example, if you want to just trace one function there is
+    <strong>zero</strong> overhead on calling any other functions.
+    This sits in contrast to the
+    <code>sys.gettrace()</code>/<code>sys.settrace()</code> feature in Python,
+    that calls the global trace function (which would now have to check whether
+    this was the function we're interested in or not) every time <em>any</em>
+    function is called.</p>
+    <p>To be clear: This post talks about a proof-of-concept (read: hackish,
+    unfinished, and with unavoidable edge cases) implementation of
+    <strong>one</strong> use of DTrace.
+    It's pretty much useless to anyone, and has nothing like the power of
+    DTrace.
+    I do think it's quite cool nevertheless.</p>
+
+    <section id="probemSpecification">
+      <h3>Introduction to the problem</h3>
+      <aside>
+        <a href="naive_trace_payload.py">Naive Trace Payload</a>
+      </aside>
+      <p>The aim of this post is to be able to dynamically tell a running
+      python process to print out the arguments passed and return value on
+      every call to a given function.
+      The caveat is that this python program should have nothing special about
+      it to help make this happen, so we could do this on any process we come
+      across.</p>
+      <p>We use the <a href="http://pyrasite.com/">Pyrasite</a> tool to handle
+      executing python code in a running process, so that all we have to do is
+      write the code to ensure a function gets traced.</p>
+      <p>You might be thinking this is an easy task, just write a wrapper
+      function and reassign the function definition using this wrapper.
+      </p>
+      <pre><code id="naiveWrapper">
+<span class="Statement">def</span> <span class="Function">wrapper_func</span><span class="Normal">(fn)</span>:
+    <span class="Statement">def</span> <span class="Function">return_func</span><span class="Normal">(</span><span class="Statement">*</span><span class="Normal">args</span>,<span class="Normal"> </span><span class="Statement">**</span><span class="Normal">kwargs)</span>:
+        <span class="Statement">print</span>(args)
+        <span class="Statement">print</span>(kwargs)
+        return_value <span class="Statement">=</span> fn(<span class="Statement">*</span>args, <span class="Statement">**</span>kwargs)
+        <span class="Statement">print</span>(return_value)
+        <span class="Statement">return</span> return_value
+    <span class="Statement">return</span> return_func
+
+
+<span class="Statement">def</span> <span class="Function">trace_this</span><span class="Normal">(fn)</span>:
+    fn<span class="Normal">.</span>__trace_orig_fn <span class="Statement">=</span> fn
+    orig_name <span class="Statement">=</span> fn<span class="Normal">.</span><span class="Structure">__name__</span>
+    <span class="Function">globals</span>()[orig_name] <span class="Statement">=</span> wrapper_func(fn)
+
+
+<span class="Statement">if</span> <span class="Structure">__name__</span> <span class="Statement">==</span> <span class="String">&quot;__main__&quot;</span>:
+    trace_this(test_function)
+      </code></pre>
+      <p>
+      This is insufficient: it updates the binding in the namespace you found
+      it, but not any other references that may be about.</p>
+      <p>As a demonstration of this problem we write a simple test program to
+      work with.
+      We will use this test program to demonstrate the benefits and problems
+      with each approach we take in the post.</p>
+      <pre>
+      <code>
+<span class="Special">#!/usr/bin/env python</span>
+<span class="PreProc">import</span> sys
+
+<span class="Statement">def</span> <span class="Function">test_function</span><span class="Normal">(a</span>,<span class="Normal"> b)</span>:
+  <span class="Statement">print</span>(<span class="String">'Calling inner function'</span>)
+  <span class="Statement">if</span> a <span class="Statement">==</span> <span class="Number">10</span>:
+      <span class="Statement">return</span> <span class="String">'Never'</span>
+  <span class="Statement">return</span> a <span class="Statement">*</span> b
+
+<span class="Statement">def</span> <span class="Function">make_closure</span><span class="Normal">(fn)</span>:
+    <span class="Statement">def</span> <span class="Function">returned_function</span><span class="Normal">(a)</span>:
+        <span class="Statement">return</span> fn(a, <span class="Number">2</span>)
+    <span class="Statement">return</span> returned_function
+
+called_via_closure <span class="Statement">=</span> make_closure(test_function)
+
+<span class="Statement">class</span> <span class="Type">LocalCopy</span>:
+    local_copy <span class="Statement">=</span> test_function
+    <span class="Statement">def</span> <span class="Function">__init__</span><span class="Normal">(</span><span class="Identifier">self</span><span class="Normal">)</span>:
+        <span class="Type">type</span>(<span class="Identifier">self</span>)<span class="Normal">.</span>local_copy(<span class="Number">3</span>, <span class="Number">2</span>)
+
+dictionary_container <span class="Statement">=</span> {<span class="String">'fn'</span>: test_function}
+
+<span class="Statement">def</span> <span class="Function">main</span><span class="Normal">()</span>:
+    test_function(<span class="Number">1</span>, <span class="Number">2</span>)
+    dictionary_container[<span class="String">'fn'</span>](<span class="Number">2</span>, <span class="Number">2</span>)
+    LocalCopy()
+    called_via_closure(<span class="Number">5</span>)
+    test_function(<span class="Number">10</span>, <span class="Number">20</span>)
+    <span class="Statement">print</span>(<span class="String">'</span><span class="Special">\n</span><span class="String">'</span>)
+
+<span class="Statement">if</span> <span class="Structure">__name__</span> <span class="Statement">==</span> <span class="String">&quot;__main__&quot;</span>:
+    <span class="PreProc">import</span> time
+    <span class="Statement">while</span> <span class="Structure">True</span>:
+        time<span class="Normal">.</span>sleep(<span class="Number">3</span>)
+        main()
+      </code></pre>
+      <p>This test program demonstrates some of the ways that a program can end
+      up using a local reference to a function instead of accessing it via the
+      module namespace.
+      Any of these can stymie redefinition in the naive way, as running the
+      commands below demonstrate.</p>
+      <p>To run the test, save the <a href="naive_trace_payload.py">naive
+        pyrasite payload</a> as <code>naive_trace_payload.py</code>, run the
+      <a href="trace_problems.py">test script above</a> in one terminal, and
+      inject the payload in another.</p>
+      <p>The injection command:</p>
+      <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> pyrasite $(pgrep -a python | grep trace_problems | cut -d</span><span class="String">' '</span><span class="Comment"> -f1) naive_trace_payload.py</span>
+(tracing) python_trace [12:18:35] $
+      </code></pre>
+      <p>What is seen as the output of the test program:</p>
+      <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> ./trace_problems.py</span>
+Calling inner function
+Calling inner function
+Calling inner function
+Calling inner function
+Calling inner function
+
+
+(1, 2)
+{}
+Calling inner function
+2
+Calling inner function
+Calling inner function
+Calling inner function
+(10, 20)
+{}
+Calling inner function
+Never
+
+
+Traceback (most recent call last):
+  File &quot;./trace_problems.py&quot;, line 39, in &lt;module&gt;
+    time.sleep(3)
+KeyboardInterrupt
+python_trace [12:18:38] $
+      </code></pre>
+
+      <p>We can see that only the direct calls through the module namespace
+      were traced.</p>
+    </section>
+    <section id="modifyCodeObject">
+      <h3>Modification Of Code Object</h3>
+      <aside>
+        <a href="segfault_tracer.py">First Step</a>
+      </aside>
+     <p>The observation that pushed me off on this tangent was that you can
+     simply reassign the <code>fn.__code__</code> object to something else, and
+     this is what defines the behaviour of <code>fn</code>.</p> 
+     <p>This object contains the bytecode that is evaluated by the Python VM,
+     and the relevant constants etc that the bytecode needs.
+     Replacing it with a <code>__code__</code> object that does something
+     different changes the behaviour when that function is called.</p>
+     <p>As this is modification of the existing function object, rather than
+     changing what is referenced by a namespace, any alternate references to
+     the function will immediately see the new behaviour.
+     You can see this in action by injecting the code below into a running
+     <code>trace_problems.py</code> process:</p>
+     <pre><code>
+<span class="Statement">def</span> <span class="Function">replace_function</span><span class="Normal">(fn</span>,<span class="Normal"> replaced_with)</span>:
+    fn<span class="Normal">.</span>__code__ <span class="Statement">=</span> replaced_with<span class="Normal">.</span>__code__
+
+<span class="Statement">def</span> <span class="Function">print_wrapper</span><span class="Normal">(</span><span class="Statement">*</span><span class="Normal">args</span>,<span class="Normal"> </span><span class="Statement">**</span><span class="Normal">kwargs)</span>:
+<span class="String">    '''Wrap the print builtin.</span>
+<span class="String">    As it's defined in C it doesn't have a __code__ attribute for us to use.'''</span>
+    <span class="Statement">print</span>(<span class="Statement">*</span>args, <span class="Statement">**</span>kwargs)
+
+replace_function(test_function, print_wrapper)
+     </code></pre>
+     <p>Every call now simply prints its arguments.</p>
+     <p>So how about we create our own <code>__code__</code> attribute to
+     behave the same as the original, but also print out the arguments and
+     return value.
+     We can then replace the <code>__code__</code> attribute on the function we
+     want to trace, and see the effects take hold.</p>
+     <p>In order to create a <code>__code__</code> object we need to understand
+     the attributes that make one up.
+     This is documented with the
+     <a href="https://docs.python.org/3/library/inspect.html">Inspect module</a>
+     but I recommend using the
+     <a href="https://docs.python.org/3/library/dis.html">Dis</a> module with a
+     number of test functions to really get the hang of it.
+     </p>
+     <p>For our first attempt, we'll simply insert the bytecode to print all
+     arguments at the start of the function, and insert a print statement just
+     before the return at the end of the function.</p>
+     <p>We can figure out the bytecode required by disassembling a few
+     choice functions and correlating what we see with
+     <a href="https://docs.python.org/3/library/dis.html#python-bytecode-instructions">
+     the documentation</a>.
+     </p>
+     <p>In order to print arguments on entry we need to know the number of
+     arguments which can be read off the original <code>__code__</code> object,
+     and we need to make sure we can access the <code>print()</code> global
+     by putting it in the <code>__code__.co_names</code> tuple.</p>
+     <pre><code>
+<span class="PreProc">import</span> itertools <span class="Statement">as</span> itt
+<span class="PreProc">import</span> opcode
+
+<span class="Statement">def</span> <span class="Function">assemble</span><span class="Normal">(instructions)</span>:
+<span class="String">    '''Hackish assemble function.</span>
+
+<span class="String">    I expect there are many problems with this definition as I'm just a</span>
+<span class="String">    beginner in python bytecode.</span>
+
+<span class="String">    '''</span>
+    <span class="Statement">return</span> <span class="Type">bytes</span>(itt<span class="Normal">.</span>chain(<span class="Statement">*</span>[(opcode<span class="Normal">.</span>opmap[instruction], argument)
+                             <span class="Statement">for</span> instruction, argument <span class="Statement">in</span> instructions]))
+
+
+<span class="Statement">def</span> <span class="Function">trace_this</span><span class="Normal">(fn)</span>:
+    orig_code <span class="Statement">=</span> fn<span class="Normal">.</span>__code__
+    new_names <span class="Statement">=</span> (orig_code<span class="Normal">.</span>co_names
+                 <span class="Statement">if</span> <span class="String">'print'</span> <span class="Statement">in</span> orig_code<span class="Normal">.</span>co_names <span class="Statement">else</span>
+                 orig_code<span class="Normal">.</span>co_names <span class="Statement">+</span> (<span class="String">'print'</span>,))
+    num_args <span class="Statement">=</span> orig_code<span class="Normal">.</span>co_argcount <span class="Statement">+</span> orig_code<span class="Normal">.</span>co_kwonlyargcount
+    print_index <span class="Statement">=</span> new_names<span class="Normal">.</span>index(<span class="String">'print'</span>)
+
+    init_instructions <span class="Statement">=</span> [(<span class="String">'LOAD_GLOBAL'</span>, print_index)]
+    <span class="Statement">for</span> local_index <span class="Statement">in</span> <span class="Function">range</span>(<span class="Number">0</span>, num_args):
+        init_instructions<span class="Normal">.</span>append((<span class="String">'LOAD_FAST'</span>, local_index))
+
+    init_instructions<span class="Normal">.</span>extend([
+              (<span class="String">'CALL_FUNCTION'</span>, num_args),
+              (<span class="String">'POP_TOP'</span>, <span class="Number">0</span>),
+    ])
+
+    entry_code <span class="Statement">=</span> assemble(init_instructions)
+
+     </code></pre>
+     <p>After this we need to print the return value of the function before it
+     exits.
+     For now I'll just assume the last instruction of the original function is
+     the only <code>RETURN_VALUE</code> instruction.
+     This won't be correct, but we can fix it later.</p>
+     <pre><code>
+    exit_code <span class="Statement">=</span> assemble([
+        <span class="Comment"># Note: The following appears to work instead of calling print().</span>
+        <span class="Comment"># ('DUP_TOP', 0),</span>
+        <span class="Comment"># ('PRINT_EXPR', 0),</span>
+        <span class="Comment"># but this feels like a hack that's not *needed* to implement the hack</span>
+        <span class="Comment"># I want, and seeing as I'm not a Python expert it could have unforseen</span>
+        <span class="Comment"># consequences that would complicate checking the tracers.</span>
+        (<span class="String">'DUP_TOP'</span>, <span class="Number">0</span>),
+        (<span class="String">'LOAD_GLOBAL'</span>, print_index),
+        (<span class="String">'ROT_TWO'</span>, <span class="Number">0</span>),
+        (<span class="String">'CALL_FUNCTION'</span>, <span class="Number">1</span>),
+        (<span class="String">'POP_TOP'</span>, <span class="Number">0</span>),
+        (<span class="String">'RETURN_VALUE'</span>, <span class="Number">0</span>),
+    ])
+
+    full_instructions <span class="Statement">=</span> (entry_code
+                         <span class="Statement">+</span> orig_code<span class="Normal">.</span>co_code[:<span class="Statement">-</span><span class="Number">2</span>]
+                         <span class="Statement">+</span> exit_code)
+     </code></pre>
+
+     <p>We use the new bytecode to create a <code>types.CodeType</code> object
+     and put that in the <code>fn.__code__</code> attribute.</p>
+     <pre><code>
+    new_code <span class="Statement">=</span> types<span class="Normal">.</span>CodeType(
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_argcount,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_kwonlyargcount,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_nlocals,
+        <span class="Comment"># We push num_args onto the stack in the initialisation code, and we</span>
+        <span class="Comment"># push an extra return value and print statement onto the stack in the</span>
+        <span class="Comment"># exit code.</span>
+        <span class="Comment"># Hence the stack can be up to max(2, 1 + num_args) greater than the</span>
+        <span class="Comment"># previous greatest depth.</span>
+        <span class="Comment"># n.b. From those functions I've disassembled it appears that each</span>
+        <span class="Comment"># python function ensures no extra stack variables are left on the</span>
+        <span class="Comment"># stack when it returns, in which case the greatest depth would be</span>
+        <span class="Comment"># max(3, fn.__code__.co_stacksize, 1 + num_args).</span>
+        <span class="Comment"># I don't know for certain that this happens (though the definition of</span>
+        <span class="Comment"># RETURN_VALUE in dis.rst doesn't say anything about clearing the</span>
+        <span class="Comment"># current stack frame, so it looks like it does), so I'm</span>
+        <span class="Comment"># playing it safe.</span>
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_stacksize <span class="Statement">+</span> num_args <span class="Statement">+</span> <span class="Number">2</span>,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_flags,
+        full_instructions,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_consts,
+        new_names,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_varnames,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_filename,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_name,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_firstlineno,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_lnotab,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_freevars,
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_cellvars
+    )
+
+    <span class="Statement">if</span> <span class="Function">getattr</span>(fn, <span class="String">'__trace_orig_code'</span>, <span class="Structure">None</span>) <span class="Statement">is</span> <span class="Structure">None</span>:
+        fn<span class="Normal">.</span>__trace_orig_code <span class="Statement">=</span> orig_code
+    <span class="Statement">else</span>:
+        <span class="Statement">raise</span> <span class="Structure">ValueError</span>(<span class="String">'Tracing function with __trace_orig_code attribute.</span><span class="Special">\n</span><span class="String">'</span>
+                         <span class="String">'Probably an already traced function.'</span>)
+
+    fn<span class="Normal">.</span>__code__ <span class="Statement">=</span> new_code
+    <span class="Statement">return</span>
+     </code></pre>
+
+     <p>If we give this a go in the terminal, we see ...</p>
+     <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> ./trace_problems.py</span>
+Calling inner function
+Calling inner function
+Calling inner function
+Calling inner function
+Calling inner function
+
+
+1 2
+Calling inner function
+Segmentation fault (core dumped)
+python_trace [14:21:00] $
+     </code></pre>
+     <p>... oh.</p>
+     <p>It turns out we forgot to account for the if clause in
+     <code>test_function()</code>.
+     This if clause is encoded as a <code>POP_JUMP_IF_FALSE</code> which jumps
+     to an absolute bytecode position.
+     Since we added code at the start of this function, the position of the
+     jump is now incorrect.</p>
+     <p>In this particular case we get a segfault as new jump target attempts
+     to run a binary operator when only one value is on the stack.
+     This results in the python evaluator attempting to access a non-existant
+     value on the stack, and hence going out-of-bounds.</p>
+     <p>You can see the disassembly of the function before and after tracing in
+     the output below.</p>
+     <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> python</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> import dis</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> import trace_problems</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> import segfault_tracer</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> print(</span><span class="String">'Before Tracing'</span><span class="Comment">)</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> dis.dis(trace_problems.test_function)</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> segfault_tracer.trace_this(trace_problems.test_function)</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> print(</span><span class="String">'After Tracing'</span><span class="Comment">)</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> dis.dis(trace_problems.test_function)</span>
+Python 3.6.1 (default, Mar 27 2017, 00:27:06)
+[GCC 6.3.1 20170306] on linux
+Type &quot;help&quot;, &quot;copyright&quot;, &quot;credits&quot; or &quot;license&quot; for more information.
+&gt;&gt;&gt; &gt;&gt;&gt; &gt;&gt;&gt; &gt;&gt;&gt; Before Tracing
+&gt;&gt;&gt;   5           0 LOAD_GLOBAL              0 (print)
+              2 LOAD_CONST               1 ('Calling inner function')
+              4 CALL_FUNCTION            1
+              6 POP_TOP
+
+  6           8 LOAD_FAST                0 (a)
+             10 LOAD_CONST               2 (10)
+             12 COMPARE_OP               2 (==)
+             14 POP_JUMP_IF_FALSE       20
+
+  7          16 LOAD_CONST               3 ('Never')
+             18 RETURN_VALUE
+
+  8     &gt;&gt;   20 LOAD_FAST                0 (a)
+             22 LOAD_FAST                1 (b)
+             24 BINARY_MULTIPLY
+             26 RETURN_VALUE
+&gt;&gt;&gt; &gt;&gt;&gt; After Tracing
+&gt;&gt;&gt;   5           0 LOAD_GLOBAL              0 (print)
+              2 LOAD_FAST                0 (a)
+              4 LOAD_FAST                1 (b)
+              6 CALL_FUNCTION            2
+
+  6           8 POP_TOP
+             10 LOAD_GLOBAL              0 (print)
+             12 LOAD_CONST               1 ('Calling inner function')
+             14 CALL_FUNCTION            1
+
+  7          16 POP_TOP
+             18 LOAD_FAST                0 (a)
+
+  8     &gt;&gt;   20 LOAD_CONST               2 (10)
+             22 COMPARE_OP               2 (==)
+             24 POP_JUMP_IF_FALSE       20
+             26 LOAD_CONST               3 ('Never')
+             28 RETURN_VALUE
+             30 LOAD_FAST                0 (a)
+             32 LOAD_FAST                1 (b)
+             34 BINARY_MULTIPLY
+             36 DUP_TOP
+             38 LOAD_GLOBAL              0 (print)
+             40 ROT_TWO
+             42 CALL_FUNCTION            1
+             44 POP_TOP
+             46 RETURN_VALUE
+&gt;&gt;&gt;
+     </code></pre>
+    </section>
+    <section id="betterModification">
+      <h3>Avoiding shifts</h3>
+      <aside>
+        <a href="modification_payload.py">Jump To End Payload</a>
+      </aside>
+      <p>In order to avoid the affects of shifting the bytecode around we take
+      heed from the way that DTrace goes about tracing a function.
+      As is shown in
+      <a href="http://www.oracle.com/technetwork/server-storage/solaris/dtrace-tutorial-142317.html">
+        this tutorial</a>, DTrace replaces the first instruction of the function
+      to trace with an
+      <a href="http://x86.renejeschke.de/html/file_module_x86_id_142.html">
+        interrupt into a debugging process</a>, which means that none of the
+      following code need be modified.</p>
+      <p>Accordingly, we replace the first instruction with a jump to some code
+      to be executed on entry and replace all <code>RETURN_VALUE</code>
+      instructions to a jump to code that must be executed on exit.</p>
+      <p>There's a little complication ensuring the first instruction gets
+      handled correctly, but other than that we can do with reasonably minor
+      modifications on the previous attempt.</p>
+      <pre><code>
+    <span class="Comment"># Print all arguments.</span>
+    entry_code <span class="Statement">=</span> assemble(init_instructions)
+    <span class="Comment"># Do whatever the first instruction of the original function was.</span>
+    <span class="Comment"># Have to account for the EXTENDED_ARG opcode.</span>
+    first_instr <span class="Statement">=</span> first_full_instruction(orig_code<span class="Normal">.</span>co_code)
+    entry_code <span class="Statement">+=</span> first_instr
+    <span class="Comment"># Jump to the start of the second instruction</span>
+    <span class="Comment"># Doesn't matter if there's a jump as the first instruction, we just would</span>
+    <span class="Comment"># not execute this one.</span>
+    <span class="Comment"># </span><span class="Todo">XXX</span><span class="Comment"> Unless it's a JUMP_FORWARD instruction.</span>
+    entry_code <span class="Statement">+=</span> assemble([(<span class="String">'JUMP_ABSOLUTE'</span>, <span class="Function">len</span>(first_instr))])
+
+    <span class="Comment"># Place the entry and exit code after the functions bytecode.</span>
+    <span class="Comment"># That way we don't change the offset into the function of any existing</span>
+    <span class="Comment"># bytecode.</span>
+    exit_address <span class="Statement">=</span> <span class="Function">len</span>(orig_code<span class="Normal">.</span>co_code)
+    initmes_address <span class="Statement">=</span> exit_address <span class="Statement">+</span> <span class="Function">len</span>(exit_code)
+
+    <span class="Comment"># Replace first two bytes with a jump to initmes_address, and all</span>
+    <span class="Comment"># RETURN_VALUE instructions with a jump to exit_address.</span>
+    alternate_code <span class="Statement">=</span> modified_code(orig_code<span class="Normal">.</span>co_code,
+                                   return_address<span class="Statement">=</span>exit_address,
+                                   entry_address<span class="Statement">=</span>initmes_address)
+    full_instructions <span class="Statement">=</span> alternate_code <span class="Statement">+</span> exit_code <span class="Statement">+</span> entry_code
+      </code></pre>
+      <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> pyrasite $(pgrep -a python | grep trace_problems | cut -d</span><span class="String">' '</span><span class="Comment"> -f1) modification_payload.py</span>
+(tracing) python_trace [15:17:35] $
+      </code></pre>
+      </code></pre>
+      <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> ./trace_problems.py</span>
+Calling inner function
+Calling inner function
+Calling inner function
+Calling inner function
+Calling inner function
+
+
+1 2
+Calling inner function
+2
+2 2
+Calling inner function
+4
+3 2
+Calling inner function
+6
+5 2
+Calling inner function
+10
+10 20
+Calling inner function
+Never
+
+
+Traceback (most recent call last):
+  File &quot;./trace_problems.py&quot;, line 39, in &lt;module&gt;
+    time.sleep(3)
+KeyboardInterrupt
+python_trace [15:17:39] $
+      </code></pre>
+      <p>This works pretty well with our test program, but is still missing
+      quite a few edge cases.</p>
+      <p>For example, if the first instruction has a relative jump then we're
+      in trouble, and there are quite a few instructions with a relative jump.</p>
+      <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> import opcode</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> import pprint</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> pprint.pprint([opcode.opname[x] for x in opcode.hasjrel])</span>
+&gt;&gt;&gt; &gt;&gt;&gt; ['FOR_ITER',
+ 'JUMP_FORWARD',
+ 'SETUP_LOOP',
+ 'SETUP_EXCEPT',
+ 'SETUP_FINALLY',
+ 'SETUP_WITH',
+ 'SETUP_ASYNC_WITH']
+&gt;&gt;&gt;
+      </code></pre>
+      <p>Moreover, if the initial function is large enough, we're going to need
+      a jump to an absolute position greater than <code>255</code>, which will
+      need an <code>EXTENDED_ARG</code> instruction and we'll have to shift the
+      remaining jumps anyway.</p>
+      <p>I guess we try a different approach.</p>
+    </section>
+    <section id="wrapperFunction">
+      <h3>Special wrapper function</h3>
+      <aside>
+        <a href="wrapper_payload.py">Wrapper Payload</a>
+      </aside>
+      <p>Instead of trying to write python bytecode ourselves, another tack is
+      to get Python to do this for us, and modify the function to execute this
+      alternate code once we're done.</p>
+      <p>To do this we go back to our
+      <a href="#naiveWrapper">first attempt</a>,
+      where we created a closure that simply called the original function after
+      printing our arguments.</p>
+      <p>If we make this closure, but instead of storing it in the global
+      namespace we modify the original function object to point to it we
+      shouldn't have to worry about updating python bytecodes, which would be
+      nice.</p>
+      <p>There are two complications to worry about:</p>
+      <ol>
+        <li>The closure from the wrapper function contains a reference to the
+          function we're modifying.</li>
+        <li>The <code>__closure__</code> and <code>__globals__</code>
+          attributes of a function are read-only.</li>
+      </ol>
+      <p>The first problem means that when we update the function in place, our
+      closure will call that modified version, which will result in an infinite
+      loop.
+      This can be avoided by creating a new function with all the same
+      attributes of the old one.</p>
+      <pre><code>
+copy_fn <span class="Statement">=</span> types<span class="Normal">.</span>FunctionType(fn<span class="Normal">.</span>__code__, fn<span class="Normal">.</span>__globals__, fn<span class="Normal">.</span><span class="Structure">__name__</span>,
+                             fn<span class="Normal">.</span>__defaults__, fn<span class="Normal">.</span>__closure__)
+      </code></pre>
+      <p>The second problem is more awkward.
+      We need the wrapper function to have access to our <code>copy_fn</code>
+      so it can emulate the traced code.
+      After definition, the wrapper has its reference through its
+      <code>__closure__</code> attribute, but we can't simply put that
+      <code>__closure__</code> attribute onto <code>test_function</code> as
+      it's a read-only attribute.</p>
+      <p>To get around these problems we cheat.
+      Instead of storing the closed over variable in the function
+      <code>__closure__</code> attribute, we put it in the code objects
+      <code>co_consts</code> attribute.
+      We then have to change the <code>LOAD_DEREF</code> instruction that loads
+      from the closure environment into a <code>LOAD_CONST</code>
+      instruction.</p>
+      <p>This doesn't have the same problems we came across when modifying
+      bytecode before, as we're always acting on the same wrapper function,
+      which means we know the bytecode we're operating on.
+      It happens that the number of constants isn't greater than 255, so
+      we don't have to use an <code>EXTENDED_ARG</code> instruction.</p>
+      <pre><code>
+<span class="Statement">def</span> <span class="Function">trace_this</span><span class="Normal">(fn)</span>:
+<span class="String">    '''Modify `fn` to print arguments and return value on execution.'''</span>
+    <span class="Comment"># Implementation is done by modifying the function *in-place*.</span>
+    <span class="Comment"># This is necessary to ensure that all local references to the function</span>
+    <span class="Comment"># (e.g. in closures, different namespaces, or collections) are traced too.</span>
+
+    <span class="Comment"># </span><span class="Todo">TODO</span>
+    <span class="Comment">#   Known problems:</span>
+    <span class="Comment">#       sys._getframe(1) now returns the frame from inside the closure.</span>
+
+    <span class="Comment"># Create a wrapper function to print arguments and return value.</span>
+    wrap_function <span class="Statement">=</span> wrapper_func(fn)
+    orig_wrap_code <span class="Statement">=</span> wrap_function<span class="Normal">.</span>__code__
+
+    <span class="Comment"># Happen to know the current bytecode of my wrapper function.</span>
+    <span class="Comment"># Probably should parse it programmatically, but for demonstration purposes</span>
+    <span class="Comment"># this is fine.</span>
+    <span class="Comment"># Change the bytecode instruction that loads a freevar into an instruction</span>
+    <span class="Comment"># to load a constant.</span>
+    <span class="Comment"># Happen to know I'll want the 5'th constant in co_consts (because I know</span>
+    <span class="Comment"># how many constants the wrapper function uses.</span>
+    <span class="Comment">#</span>
+    <span class="Comment"># Bytecode is version specific.</span>
+    <span class="Comment"># Am *very* apprehensive about this, I can easily imagine the LOAD_CONST</span>
+    <span class="Comment"># bytecode implementation assuming it's loading something that's constant.</span>
+    <span class="Comment"># It appears to work ...</span>
+    alt <span class="Statement">=</span> <span class="Type">bytes</span>([opcode<span class="Normal">.</span>opmap[<span class="String">'LOAD_CONST'</span>], <span class="Number">4</span>])
+    alternate_code <span class="Statement">=</span> orig_wrap_code<span class="Normal">.</span>co_code[:<span class="Number">20</span>] <span class="Statement">+</span> alt <span class="Statement">+</span> orig_wrap_code<span class="Normal">.</span>co_code[<span class="Number">22</span>:]
+
+    <span class="Comment"># Create a copy of the original function.</span>
+    <span class="Comment"># This has the same functionality as the original one, but is a different</span>
+    <span class="Comment"># object.</span>
+    <span class="Comment"># We need a different object so that the modification done below doesn't</span>
+    <span class="Comment"># change the behaviour of our wrapper function.</span>
+    copy_fn <span class="Statement">=</span> types<span class="Normal">.</span>FunctionType(fn<span class="Normal">.</span>__code__, fn<span class="Normal">.</span>__globals__, fn<span class="Normal">.</span><span class="Structure">__name__</span>,
+                                 fn<span class="Normal">.</span>__defaults__, fn<span class="Normal">.</span>__closure__)
+
+    new_codeobj <span class="Statement">=</span> types<span class="Normal">.</span>CodeType(
+        orig_wrap_code<span class="Normal">.</span>co_argcount,
+        orig_wrap_code<span class="Normal">.</span>co_kwonlyargcount,
+        orig_wrap_code<span class="Normal">.</span>co_nlocals,
+        orig_wrap_code<span class="Normal">.</span>co_stacksize,
+        orig_wrap_code<span class="Normal">.</span>co_flags,
+        alternate_code,
+        orig_wrap_code<span class="Normal">.</span>co_consts <span class="Statement">+</span> (copy_fn,),
+        orig_wrap_code<span class="Normal">.</span>co_names,
+        orig_wrap_code<span class="Normal">.</span>co_varnames,
+        orig_wrap_code<span class="Normal">.</span>co_filename,
+        orig_wrap_code<span class="Normal">.</span>co_name,
+        orig_wrap_code<span class="Normal">.</span>co_firstlineno,
+        orig_wrap_code<span class="Normal">.</span>co_lnotab,
+        <span class="Comment"># Take freevars from the original function.</span>
+        <span class="Comment"># This is so the code object matches the __closure__ object from the</span>
+        <span class="Comment"># original function.</span>
+        <span class="Comment"># If they don't match, python raises an exception upon assignment at</span>
+        <span class="Comment"># the end of this function.</span>
+        <span class="Comment"># We can't change the __closure__ member, as this is a read-only</span>
+        <span class="Comment"># attribute enforced in the C core.</span>
+        <span class="Comment"># This shouldn't matter either way, the closed over variables aren't</span>
+        <span class="Comment"># used in the wrapper code.</span>
+        fn<span class="Normal">.</span>__code__<span class="Normal">.</span>co_freevars,
+        orig_wrap_code<span class="Normal">.</span>co_cellvars
+    )
+
+    <span class="Statement">if</span> <span class="Function">getattr</span>(fn, <span class="String">'__trace_orig_code'</span>, <span class="Structure">None</span>) <span class="Statement">is</span> <span class="Structure">None</span>:
+        fn<span class="Normal">.</span>__trace_orig_code <span class="Statement">=</span> fn<span class="Normal">.</span>__code__
+    <span class="Statement">else</span>:
+        <span class="Statement">raise</span> <span class="Structure">ValueError</span>(<span class="String">'Tracing function with __trace_orig_code attribute.</span><span class="Special">\n</span><span class="String">'</span>
+                         <span class="String">'Probably an already traced function.'</span>)
+
+    fn<span class="Normal">.</span>__code__ <span class="Statement">=</span> new_codeobj
+    <span class="Statement">return</span>
+
+      </code></pre>
+      <p>This works just fine.</p>
+      <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> pyrasite $(pgrep -a python | grep trace_problems | cut -d</span><span class="String">' '</span><span class="Comment"> -f1) wrapper_payload.py</span>
+(tracing) python_trace [16:22:52] $
+      </code></pre>
+      <pre><code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> ./trace_problems.py</span>
+Calling inner function
+Calling inner function
+Calling inner function
+Calling inner function
+Calling inner function
+
+
+Calling with args (1, 2)
+Calling with kwargs {}
+Calling inner function
+Returned: 2
+Calling with args (2, 2)
+Calling with kwargs {}
+Calling inner function
+Returned: 4
+Calling with args (3, 2)
+Calling with kwargs {}
+Calling inner function
+Returned: 6
+Calling with args (5, 2)
+Calling with kwargs {}
+Calling inner function
+Returned: 10
+Calling with args (10, 20)
+Calling with kwargs {}
+Calling inner function
+Returned: Never
+
+
+Traceback (most recent call last):
+  File &quot;./trace_problems.py&quot;, line 39, in &lt;module&gt;
+    time.sleep(3)
+KeyboardInterrupt
+python_trace [16:22:54] $
+      </code></pre>
+      <p>And it can be untraced with a simple function.</p>
+      <pre><code>
+<span class="Statement">def</span> <span class="Function">untrace_this</span><span class="Normal">(fn)</span>:
+<span class="String">    '''Remove tracing on `fn`.'''</span>
+    <span class="Statement">if</span> <span class="Statement">not</span> <span class="Function">hasattr</span>(fn, <span class="String">'__trace_orig_code'</span>):
+        <span class="Statement">return</span>
+    fn<span class="Normal">.</span>__code__ <span class="Statement">=</span> fn<span class="Normal">.</span>__trace_orig_code
+    <span class="Function">delattr</span>(fn, <span class="String">'__trace_orig_code'</span>)
+      </code></pre>
+    </section>
+    <section id="conclusion">
+      <h3>Conclusion</h3>
+      <p>The above is a very hacky approach, but I think it's a pretty cool
+      method of adding tracing without adding overhead to every function
+      invokation. For an approach that uses the more conventional
+      <code>sys.settrace()</code> function, we would probably want to do
+      something like
+      <a href="https://github.com/khamidou/lptrace">lptrace</a> does, by
+      attaching to the process and installing a trace handler.</p>
+      <p>I haven't looked into what problems we might have with multiple
+      threads or processes.
+      I expect multiple processes would have to be updated separately, and
+      the fact that <a href="http://pyrasite.com/">pyrasite</a> holds the GIL
+      around running our code means we're safe there, but I wouldn't bet much
+      on that.</p>
+      <h5>Future work</h5>
+      <p>One thing that came to mind while working on this post is the
+      possibility of completely redefining a function, not just adding tracing
+      to it.
+      This brings to mind one of the (many) cool and (probably not 100%)
+      unique things about common lisp: the ability to completely
+      <a href="http://tiborsimko.org/common-lisp-runtime-redefinition.html">
+      redefine a function in a running process</a>.
+      </p>
+      <p>If it weren't for the problems with the readonly
+      <code>__globals__</code> and <code>__closure__</code> attributes
+      redefinition would be simple.</p>
+      <p>Modifying the CPython interpreter to allow redefinition of these
+      attributes, and to allow creation of <code>cell</code> objects from
+      python code allows this functionality.</p>
+      <p>The
+      <a href="allow_closure_modification.patch">patch below</a>
+      <em>appears</em> to work, but being a complete novice
+      to the CPython implementation and only spending a few minutes on it, I'd
+      be surprised if there weren't any bugs.</p>
+      <pre><code>
+<span class="Type">diff --git a/Objects/cellobject.c b/Objects/cellobject.c</span>
+<span class="PreProc">index 6af93b0030..60b15409ce 100644</span>
+<span class="Type">--- a/Objects/cellobject.c</span>
+<span class="Type">+++ b/Objects/cellobject.c</span>
+<span class="Statement">@@ -2,6 +2,13 @@</span>
+
+ #include &quot;Python.h&quot;
+
+<span class="Identifier">+/*[clinic input]</span>
+<span class="Identifier">+class cell &quot;PyCellObject *&quot; &quot;&amp;PyCell_Type&quot;</span>
+<span class="Identifier">+[clinic start generated code]*/</span>
+<span class="Identifier">+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=3d6baba8cf810af0]*/</span>
+<span class="Identifier">+</span>
+<span class="Identifier">+#include &quot;clinic/cellobject.c.h&quot;</span>
+<span class="Identifier">+</span>
+ PyObject *
+ PyCell_New(PyObject *obj)
+ {
+<span class="Statement">@@ -154,6 +161,27 @@</span><span class="PreProc"> static PyGetSetDef cell_getsetlist[] = {</span>
+     {NULL} /* sentinel */
+ };
+
+<span class="Identifier">+/*[clinic input]</span>
+<span class="Identifier">+@classmethod</span>
+<span class="Identifier">+cell.__new__ as cell_new</span>
+<span class="Identifier">+    contents: object</span>
+<span class="Identifier">+        an object to be stored in the cell</span>
+<span class="Identifier">+</span>
+<span class="Identifier">+Create a cell object.</span>
+<span class="Identifier">+[clinic start generated code]*/</span>
+<span class="Identifier">+</span>
+<span class="Identifier">+static PyObject *</span>
+<span class="Identifier">+cell_new_impl(PyTypeObject *type, PyObject *contents)</span>
+<span class="Identifier">+/*[clinic end generated code: output=0b7db264f0621bb4 input=1b029ce829d4061b]*/</span>
+<span class="Identifier">+{</span>
+<span class="Identifier">+    PyCellObject *newcell;</span>
+<span class="Identifier">+    newcell = (PyCellObject *)PyCell_New(contents);</span>
+<span class="Identifier">+    if (newcell == NULL)</span>
+<span class="Identifier">+        return NULL;</span>
+<span class="Identifier">+    // Already tracking this from the PyCell_New() function</span>
+<span class="Identifier">+    return (PyObject *)newcell;</span>
+<span class="Identifier">+}</span>
+<span class="Identifier">+</span>
+ PyTypeObject PyCell_Type = {
+     PyVarObject_HEAD_INIT(&amp;PyType_Type, 0)
+     &quot;cell&quot;,
+<span class="Statement">@@ -185,4 +213,12 @@</span><span class="PreProc"> PyTypeObject PyCell_Type = {</span>
+     0,                                          /* tp_methods */
+     0,                                          /* tp_members */
+     cell_getsetlist,                            /* tp_getset */
+<span class="Identifier">+    0,                                          /* tp_base */</span>
+<span class="Identifier">+    0,                                          /* tp_dict */</span>
+<span class="Identifier">+    0,                                          /* tp_descr_get */</span>
+<span class="Identifier">+    0,                                          /* tp_descr_set */</span>
+<span class="Identifier">+    0,                                          /* tp_dictoffset */</span>
+<span class="Identifier">+    0,                                          /* tp_init */</span>
+<span class="Identifier">+    0,                                          /* tp_alloc */</span>
+<span class="Identifier">+    cell_new,                                   /* tp_new */</span>
+ };
+<span class="Type">diff --git a/Objects/funcobject.c b/Objects/funcobject.c</span>
+<span class="PreProc">index e440258d7d..b2e4fb26d7 100644</span>
+<span class="Type">--- a/Objects/funcobject.c</span>
+<span class="Type">+++ b/Objects/funcobject.c</span>
+<span class="Statement">@@ -230,11 +230,9 @@</span><span class="PreProc"> PyFunction_SetAnnotations(PyObject *op, PyObject *annotations)</span>
+ #define OFF(x) offsetof(PyFunctionObject, x)
+
+ static PyMemberDef func_memberlist[] = {
+<span class="Special">-    {&quot;__closure__&quot;,   T_OBJECT,     OFF(func_closure),</span>
+<span class="Special">-     RESTRICTED|READONLY},</span>
+<span class="Identifier">+    {&quot;__closure__&quot;,   T_OBJECT,     OFF(func_closure), RESTRICTED},</span>
+     {&quot;__doc__&quot;,       T_OBJECT,     OFF(func_doc), PY_WRITE_RESTRICTED},
+<span class="Special">-    {&quot;__globals__&quot;,   T_OBJECT,     OFF(func_globals),</span>
+<span class="Special">-     RESTRICTED|READONLY},</span>
+<span class="Identifier">+    {&quot;__globals__&quot;,   T_OBJECT,     OFF(func_globals), RESTRICTED},</span>
+     {&quot;__module__&quot;,    T_OBJECT,     OFF(func_module), PY_WRITE_RESTRICTED},
+     {NULL}  /* Sentinel */
+ };
+      </code></pre>
+
+      <p>With that patch, function redefinition is as simple as defining your
+      new function, then copying its attributes onto the original function
+      object.
+      Obviously, some sort of lock would be needed to avoid the function being
+      called in an inconsistent state, but nevertheless it's a step in the
+      right direction.</p>
+    </section>
+    </main>
+  </body>
+</html>

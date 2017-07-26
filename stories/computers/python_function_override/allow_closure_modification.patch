@@ -1,0 +1,77 @@
+diff --git a/Objects/cellobject.c b/Objects/cellobject.c
+index 6af93b0030..60b15409ce 100644
+--- a/Objects/cellobject.c
++++ b/Objects/cellobject.c
+@@ -2,6 +2,13 @@
+ 
+ #include "Python.h"
+ 
++/*[clinic input]
++class cell "PyCellObject *" "&PyCell_Type"
++[clinic start generated code]*/
++/*[clinic end generated code: output=da39a3ee5e6b4b0d input=3d6baba8cf810af0]*/
++
++#include "clinic/cellobject.c.h"
++
+ PyObject *
+ PyCell_New(PyObject *obj)
+ {
+@@ -154,6 +161,27 @@ static PyGetSetDef cell_getsetlist[] = {
+     {NULL} /* sentinel */
+ };
+ 
++/*[clinic input]
++@classmethod
++cell.__new__ as cell_new
++    contents: object
++        an object to be stored in the cell
++
++Create a cell object.
++[clinic start generated code]*/
++
++static PyObject *
++cell_new_impl(PyTypeObject *type, PyObject *contents)
++/*[clinic end generated code: output=0b7db264f0621bb4 input=1b029ce829d4061b]*/
++{
++    PyCellObject *newcell;
++    newcell = (PyCellObject *)PyCell_New(contents);
++    if (newcell == NULL)
++        return NULL;
++    // Already tracking this from the PyCell_New() function
++    return (PyObject *)newcell;
++}
++
+ PyTypeObject PyCell_Type = {
+     PyVarObject_HEAD_INIT(&PyType_Type, 0)
+     "cell",
+@@ -185,4 +213,12 @@ PyTypeObject PyCell_Type = {
+     0,                                          /* tp_methods */
+     0,                                          /* tp_members */
+     cell_getsetlist,                            /* tp_getset */
++    0,                                          /* tp_base */
++    0,                                          /* tp_dict */
++    0,                                          /* tp_descr_get */
++    0,                                          /* tp_descr_set */
++    0,                                          /* tp_dictoffset */
++    0,                                          /* tp_init */
++    0,                                          /* tp_alloc */
++    cell_new,                                   /* tp_new */
+ };
+diff --git a/Objects/funcobject.c b/Objects/funcobject.c
+index e440258d7d..b2e4fb26d7 100644
+--- a/Objects/funcobject.c
++++ b/Objects/funcobject.c
+@@ -230,11 +230,9 @@ PyFunction_SetAnnotations(PyObject *op, PyObject *annotations)
+ #define OFF(x) offsetof(PyFunctionObject, x)
+ 
+ static PyMemberDef func_memberlist[] = {
+-    {"__closure__",   T_OBJECT,     OFF(func_closure),
+-     RESTRICTED|READONLY},
++    {"__closure__",   T_OBJECT,     OFF(func_closure), RESTRICTED},
+     {"__doc__",       T_OBJECT,     OFF(func_doc), PY_WRITE_RESTRICTED},
+-    {"__globals__",   T_OBJECT,     OFF(func_globals),
+-     RESTRICTED|READONLY},
++    {"__globals__",   T_OBJECT,     OFF(func_globals), RESTRICTED},
+     {"__module__",    T_OBJECT,     OFF(func_module), PY_WRITE_RESTRICTED},
+     {NULL}  /* Sentinel */
+ };
