@@ -42,6 +42,27 @@
     DTrace.
     I do think it's quite cool nevertheless.</p>
 
+    <aside>
+      For anyone interested, the canonical way to trace functions would be
+      something with <code>settrace()</code>, e.g.
+      <pre><code id="withSettrace">import sys
+class TestTracer:
+    def __init__(self):
+        self.indent = 0
+    def __call__(self, frame, event, arg):
+        if event == 'call':
+            self.indent += 4
+            print('{} --&gt; {}'.format(' '*self.indent, frame.f_code.co_name))
+            return self
+        elif event == 'return':
+            print('{} &lt;-- {}'.format(' '*self.indent, frame.f_code.co_name))
+            self.indent -= 4
+        return None
+
+sys.settrace(TestTracer())</code></pre>
+      I'm avoiding this because it adds overhead to every function call.
+    </aside>
+
     <section id="probemSpecification">
       <h3>Introduction to the problem</h3>
       <aside>
