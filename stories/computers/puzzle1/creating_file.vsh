@@ -3,19 +3,19 @@ vshcmd: > as elfhdr.s -o aself.o
 vshcmd: > ld -Ttext 0x08048000 --oformat=binary -o elffile.out aself.o
 vshcmd: > chmod +x ./elffile.out
 vshcmd: > echo && ./elffile.out
-puzzle [12:12:12] $ puzzle [12:12:12] $ puzzle [12:12:12] $ 
-My words may be obtuse.
-But they reveal a truth.
-Read them carefully and give me a ...
-puzzle [12:12:12] $ 
+puzzle1 [17:57:40] $ puzzle1 [17:57:41] $ puzzle1 [17:57:41] $ 
+Magic words can be obtuse.
+But reveal an alternate use.
+Read, google, deduce.
+puzzle1 [17:57:41] $ 
 vshcmd: > file elffile.out
-elffile.out: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped, with debug_info
-puzzle [12:12:15] $ 
+elffile.out: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped
+puzzle1 [17:58:27] $ 
 vshcmd: > # Create a valid mbr .
 vshcmd: > as mbr_message.s -o asmbr.o
 vshcmd: > ld -Ttext 0x7c00 --oformat=binary -o asmbr.out asmbr.o
 vshcmd: > qemu-system-x86_64 -enable-kvm -drive file=asmbr.out,index=0,if=floppy,format=raw -boot order=a
-puzzle [12:12:17] $ puzzle [12:12:17] $ puzzle [12:12:19] $ 
+puzzle1 [17:58:31] $ puzzle1 [17:58:31] $ puzzle1 [17:58:35] $ 
 vshcmd: > python
 vshcmd: > import itertools
 vshcmd: > with open('elffile.out', 'rb') as infile:
@@ -30,25 +30,28 @@ vshcmd: >           print("mbr value: ", hex(left))
 vshcmd: >           print("ELF value: ", hex(right))
 vshcmd: >   outfile.write(bytes([ left | right for left, right in itertools.zip_longest(mbrbytes, elfbytes, fillvalue=0)]))
 vshcmd: > exit()
-Python 3.6.0 (default, Jan 16 2017, 12:12:55) 
-[GCC 6.3.1 20170109] on linux
+Python 3.6.2 (default, Jul 20 2017, 03:52:27) 
+[GCC 7.1.1 20170630] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> >>> ... ... >>> ... ... >>> ... ... ... ... ... ... ... 1024
->>> puzzle [12:12:21] $ 
+>>> puzzle1 [17:58:39] $ 
 vshcmd: > # Check that output file works as an mbr
-vshcmd: > chmod u+x final.bin && ./final.bin
-My words may be obtuse.
-But they reveal a truth.
-Read them carefully and give me a ...
-puzzle [12:12:24] $ 
 vshcmd: > qemu-system-x86_64 -enable-kvm -drive file=final.bin,index=0,if=floppy,format=raw -boot order=a
-puzzle [12:12:27] $ 
+puzzle1 [18:07:36] $ 
 vshcmd: > # N.B. this requires a bochsrc.txt -- just use the most plain one you find via google.
-vshcmd: > bochs
-========================================================================
-                       Bochs x86 Emulator 2.6.8
-                Built from SVN snapshot on May 3, 2015
-                  Compiled on Nov  7 2016 at 17:36:50
+vshcmd: > cat > bochsrc.txt
+vshcmd: > megs: 32
+vshcmd: > #romimage: file=/usr/share/bochs/BIOS-bochs-latest, address=0xf0000
+vshcmd: > #vgaromimage: /usr/share/bochs/VGABIOS-elpin-2.40
+vshcmd: > floppya: 1_44=final.bin, status=inserted
+vshcmd: > # CHS=7769/16/63
+vshcmd: > log: bochsout.txt
+vshcmd: > mouse: enabled=0
+vshcmd: > bochs
+puzzle1 [18:08:52] $ ========================================================================
+                       Bochs x86 Emulator 2.6.9
+               Built from SVN snapshot on April 9, 2017
+                  Compiled on Apr 21 2017 at 23:41:40
 ========================================================================
 00000000000i[      ] BXSHARE not set. using compile time default '/usr/share/bochs'
 00000000000i[      ] reading configuration from bochsrc.txt
@@ -84,18 +87,20 @@ vshcmd: > cont
 Bochs is exiting with the following message:
 [XGUI  ] POWER button turned off.
 ========================================================================
-(0).[96024000] [0x000000007d12] 0000:7d12 (unk. ctxt): jmp .-2 (0x00007d12)      ; ebfe
-puzzle [12:12:34] $ 
+(0).[264396000] [0x000000007d12] 0000:7d12 (unk. ctxt): jmp .-2 (0x00007d12)      ; ebfe
+puzzle1 [18:09:09] $ 
+vshcmd: > rm bochsrc.txt
+puzzle1 [18:09:13] $ 
 vshcmd: > # Check that it works as a binary
 vshcmd: > chmod u+x final.bin && ./final.bin
-My words may be obtuse.
-But they reveal a truth.
-Read them carefully and give me a ...
-puzzle [12:12:37] $ 
+Magic words can be obtuse.
+But reveal an alternate use.
+Read, google, deduce.
+puzzle1 [18:09:19] $ 
 vshcmd: > # Show that the file isn't too suspicious
 vshcmd: > file final.bin
-final.bin: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped, with debug_info
-puzzle [12:12:41] $ 
+final.bin: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped
+puzzle1 [18:09:24] $ 
 vshcmd: > readelf -a final.bin
 ELF Header:
   Magic:   7f 45 4c 46 01 01 01 00 e9 e4 00 00 00 00 00 00 
@@ -107,7 +112,7 @@ ELF Header:
   Type:                              EXEC (Executable file)
   Machine:                           Intel 80386
   Version:                           0x1
-  Entry point address:               0x804816c
+  Entry point address:               0x8048163
   Start of program headers:          59 (bytes into file)
   Start of section headers:          91 (bytes into file)
   Flags:                             0x0
@@ -121,7 +126,7 @@ ELF Header:
 Section Headers:
   [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
   [ 0]                   NULL            00000000 000000 000000 00      0   0  0
-  [ 1] .text             PROGBITS        0804816c 00016c 000294 00   A  0   0 16
+  [ 1] .text             PROGBITS        08048163 000163 00029d 00   A  0   0 16
   [ 2] .shstrtab         STRTAB          00000000 0000d3 00001b 00      0   0  1
 Key to Flags:
   W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
@@ -146,14 +151,14 @@ There are no relocations in this file.
 The decoding of unwind sections for machine type Intel 80386 is not currently supported.
 
 No version information found in this file.
-puzzle [12:12:42] $ 
+puzzle1 [18:09:32] $ 
 vshcmd: > objdump -x final.bin
 
 final.bin:     file format elf32-i386
 final.bin
 architecture: i386, flags 0x00000102:
 EXEC_P, D_PAGED
-start address 0x0804816c
+start address 0x08048163
 
 Program Header:
     LOAD off    0x00000000 vaddr 0x08048000 paddr 0x0800a5e9 align 2**12
@@ -161,10 +166,10 @@ Program Header:
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
-  0 .text         00000294  0804816c  0800a755  0000016c  2**4
+  0 .text         0000029d  08048163  0800a74c  00000163  2**4
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
 SYMBOL TABLE:
 no symbols
 
 
-puzzle [12:12:44] $ 
+puzzle1 [18:09:42] $ 

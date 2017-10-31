@@ -33,23 +33,20 @@
     <pre>
         <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> xxd -p -r Puzzle.bin &gt; challenge_binary</span>
-puzzle [15:32:08] $
+puzzle1 [15:32:08] $
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> file challenge_binary</span>
-challenge_binary: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped, with debug_info
-puzzle [15:33:13] $
+challenge_binary: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), statically linked, stripped
+puzzle1 [15:33:13] $
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> chmod +x ./challenge_binary &amp; ./challenge_binary</span>
-My words may be obtuse.
-But they reveal a truth.
-Read them carefully and give me a ...
-puzzle [15:33:14] $
+Magic words can be obtuse.
+But reveal an alternate use.
+Read, google, deduce.
+puzzle1 [17:57:41] $ 
 <span class="PreProc">vshcmd: &gt;</span></code>
     </pre>
     <p>
-    Huh. Not particularly useful, and pretty strange ...
-    <q><code>stripped, with debug_info</code></q> what's that mean?
-    </p>
-    <p>But it's a Linux x86 binary that prints out a string. That's piece of
-    info number 1.</p>
+    Huh. Not particularly useful, but it's a Linux x86 binary that prints out a
+    string. That's piece of info number 1.</p>
     <p>
     I guess run it in a debugger?
     </p>
@@ -75,21 +72,21 @@ Temporary breakpoint 1 at 0x804816c
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> run</span>
 Starting program: /&lt;directory&gt;/challenge_binary
 
-Temporary breakpoint 1, 0x0804816c in ?? ()
-(gdb)
+Temporary breakpoint 1, 0x08048163 in ?? ()
+(gdb) 
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> display/i $pc</span>
 1: x/i $pc
-=&gt; 0x804816c:   mov    $0x57,%edx
-(gdb)
+=&gt; 0x8048163:	mov    $0x4e,%edx
+(gdb) 
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> stepi</span>
   ...
   Some time later
   ...
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> stepi</span>
-0x08048187 in ?? ()
+0x0804817e in ?? ()
 1: x/i $pc
-=&gt; 0x8048187:   int    $0x80
-(gdb)
+=&gt; 0x804817e:	int    $0x80
+(gdb) 
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> stepi</span>
 [Inferior 1 (process 3320) exited with code 01]
 (gdb)</code></pre>
@@ -97,8 +94,8 @@ Temporary breakpoint 1, 0x0804816c in ?? ()
     Not helpful there either, just calls <code>write(2)</code> and
     <code>exit(2)</code>.
     There <em>is</em> a lot of <code>.text</code> segment that goes unused:
-    <code>0x0804816c - 0x08048400</code> is <code>.text</code>, while we
-    leave at <code>0x8048187</code>. There are no branch points, so it can't
+    <code>0x08048163 - 0x08048400</code> is <code>.text</code>, while we
+    leave at <code>0x0804817e</code>. There are no branch points, so it can't
     be instructions for the binary. Why is it there?
     </p>
     <p>
@@ -118,7 +115,7 @@ Temporary breakpoint 1, 0x0804816c in ?? ()
             ...
 000003e0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
 000003f0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
-puzzle [15:37:05] $</code>
+puzzle1 [15:37:05] $</code>
     </pre>
     <p>
     All zeros? What on earth is the point in that?
@@ -139,13 +136,13 @@ puzzle [15:37:05] $</code>
     </p>
     <pre>
         <code>
-<b>M</b>y words may be obtuse.
-<b>B</b>ut they reveal a truth.
-<b>R</b>ead them carefully and give me a ...
+<b>M</b>agic words can be obtuse.   
+<b>B</b>ut reveal an alternate use. 
+<b>R</b>ead, google, deduce.        
         </code>
     </pre>
     <p>
-    So I guess give it a <strong>boot</strong>?
+    So I guess boot it?
     </p>
     <p>
     ... google how to boot an image ...
@@ -155,7 +152,7 @@ puzzle [15:37:05] $</code>
     <pre>
         <code>
 <span class="PreProc">vshcmd: &gt;</span><span class="Comment"> qemu-system-x86 -drive format=raw,file=challenge_binary</span>
-puzzle [16:08:55] $</code>
+puzzle1 [16:08:55] $</code>
     </pre>
     <img src="solved_puzzle.png"
     alt="Qemu virtual machine booted using the file shows the text 'Fun!'.">

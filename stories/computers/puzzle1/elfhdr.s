@@ -132,9 +132,9 @@ stringsection:
 .fill 0x27, 1, 0
 
 message:
-    .ascii "My words may be obtuse.\n"
-    .ascii "But they reveal a truth.\n"
-    .ascii "Read them carefully and give me a ...\n"
+    .ascii "Magic words can be obtuse.\n"
+    .ascii "But reveal an alternate use.\n"
+    .ascii "Read, google, deduce.\n"
 .set message_len, . - message
 
 _start:

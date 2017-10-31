@@ -24,7 +24,7 @@ section_start:
     jmp _start
 
 # Find offset of the message
-# vimcmd; +1! grep -o -b -a '"' elffile.out | python -c 'import re; print(".set quotation_mark,", hex(int(re.sub(r"(\d+):.*", r"\1", input()))))'
+# vimcmd; +1! grep -o -b -a '"' %:h/elffile.out | python -c 'import re; print(".set quotation_mark,", hex(int(re.sub(r"(\d+):.*", r"\1", input()))))'
 .set quotation_mark, 0xec
     .fill quotation_mark - (. - section_start), 1, 0
 quot_char:
@@ -53,17 +53,17 @@ _start:
 jmp .
 
 
-# vimcmd; +1! grep -o -b -a 'My words' elffile.out | python -c 'import re; print(".set message_offset,", hex(int(re.sub(r"(\d+):.*", r"\1", input()))))'
+# vimcmd; +1! grep -o -b -a 'Magic words' %:h/elffile.out | python -c 'import re; print(".set message_offset,", hex(int(re.sub(r"(\d+):.*", r"\1", input()))))'
 .set message_offset, 0x115
-.fill message_offset + 0x13 - (. - section_start), 1, 0
+.fill message_offset + 0x16 - (. - section_start), 1, 0
 u_letter:
     .byte 'u'
-.fill message_offset + 0x46 - (. - section_start), 1, 0
+.fill message_offset + 0x27 - (. - section_start), 1, 0
 n_letter:
     .byte 'n'
 # Find offset of an at sign
-# vimcmd; +1! grep -o -b -a '@' elffile.out | python -c 'import re; print(".set at_sign,", hex(int(re.sub(r"(\d+):.*", r"\1", input()))))'
-.set at_sign, 0x186
+# vimcmd; +1! grep -o -b -a '@' %:h/elffile.out | python -c 'import re; print(".set at_sign,", hex(int(re.sub(r"(\d+):.*", r"\1", input()))))'
+.set at_sign, 0x17d
     .fill at_sign - (. - section_start), 1, 0
 at_char:
     .byte '@'
