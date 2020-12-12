@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!--
+      Note to self: given I refuse to use javascript, how can I use a known
+      header html file in all my documents?
+      I guess I could just have the first X lines `cat`ed onto each document
+      -->
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="/basicstyle.css">
+    <title>Puzzle challenge 3</title>
+  </head>
+  <body>
+    <main role="main">
+    <header>
+      <h1>Puzzle challenge 3</h1>
+    </header>
+    <p>
+      A while ago I was working through the
+      <a href="https://hackthissite.org">hackthissite.org</a> challenges.
+      One of the challenge categories is "Steganography", which revolves around
+      hiding secrets in images.
+      As I would attempt these challenges, I kept looking for the solution in
+      places that ended up to be irrelevant.  
+      After thinking about it for a little time I ended up thinking you certainly
+      could hide a secret of some sort where I was looking, and decided to write
+      my own challenge along the same lines.
+    </p>
+    <aside>
+      NOTE: I have not finished all of those challenges so it is possible that
+      a challenge along the lines of what I did here exists.
+    </aside>
+    <p>
+      The image I produced is below.  The challenge is simply to find the
+      password in it.  There is no validation form to check your answer but the
+      answer can be found at the bottom of the
+      <a href="walkthrough.html">walkthrough</a> describing how I envisaged the
+      challenge being solved.
+      I expect the jump to make is too large without a hint, so there is a clue
+      provided <a href="clue.html">here</a>.
+    </p>
+    <p>
+      <h3>The Challenge Image</h3>
+      <img src="challenge_image.png" alt="Find the password!">
+    </p>
+    <p>
+      In keeping with the other puzzles I've put on this site I'm including the
+      code I used to produce the puzzle.  This isn't particularly cleaned, and
+      includes some notes to myself on figuring out how to implement what I
+      wanted.
+
+      Those are the files <a href="analysis.py">analysis.py</a>,
+      <a href="decoder.py">decoder.py</a>,
+      <a href="encoder.py">encoder.py</a>,
+      <a href="investigation.vsh">investigation.vsh</a>, and
+      <a href="extracting-letters.vsh">extracting-letters.vsh</a>.
+      While I used the image
+      <a href="creating-letters.png">creating-letters.png</a> (generated from
+      gimp by just typing in some text) to form some letters to use.
+    </p>
+    </main>
+  </body>
+</html>
+
