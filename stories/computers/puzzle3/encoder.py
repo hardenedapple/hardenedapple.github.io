@@ -26,6 +26,7 @@ def create_indexes_from_password(password):
 def create_palette_from_indexes(indexes):
   palette = [(255, 255, 255) if i not in indexes else (0, 0, 0)
              for i in range(256)]
+  palette[-1] = (255, 0, 0)
   return palette
 
 def plte_from_password(password):
