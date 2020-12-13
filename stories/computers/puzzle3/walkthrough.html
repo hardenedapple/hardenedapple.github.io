@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!--
+      Note to self: given I refuse to use javascript, how can I use a known
+      header html file in all my documents?
+      I guess I could just have the first X lines `cat`ed onto each document
+      -->
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="/basicstyle.css">
+    <title>Puzzle Walkthrough</title>
+  </head>
+  <body>
+    <main role="main">
+    <header>
+      <h1>Walkthrough</h1>
+      <p>How I imagined people would figure my puzzle out ...</p>
+    </header>
+    <aside>
+      Commands are copied straight out of a
+      <a href="https://github.com/hardenedapple/vsh">neovim plugin I use</a>:
+      <ul>
+        <li><code>vshcmd: &gt; </code> lines are commands.</li>
+        <li><code>vshcmd: &gt; # </code> lines are comments.</li>
+        <li>I've truncated the output of some commands.</li>
+      </ul>
+    </aside>
+    <p>
+    So, we have an image. The first thing anyone would do is to look at it in
+    an image viewer. For this image all you see is that it's all just white,
+    and there's nothing there.
+    Not much more an image viewer can tell me, so I guess look at the pixels in
+    the image (e.g. with PIL).
+    </p>
+      <pre>
+        <code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> python3</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> from PIL import Image</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> challenge_image = Image.open(</span><span class="String">'puzzle3/challenge-image.png'</span><span class="Comment">)</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> set(challenge_image.getdata())</span>
+{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 69, 71, 73, 75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95, 97, 99, 101, 103, 105, 107, 109, 111, 113, 115, 117, 119, 121, 123, 125, 127, 129, 131, 133, 135, 137, 139, 141, 143, 145, 147, 149, 151, 153, 155, 157, 159, 161, 163, 165, 167, 169, 171, 173, 175, 177, 179, 181, 183, 185, 187, 189, 191, 193, 195, 197, 199, 201, 203, 205, 207, 209, 211, 213, 215, 217}
+&gt;&gt;&gt;
+        </code>
+      </pre>
+    <p>
+    That's somewhat interesting, we have all the odd numbers as our "data".
+    But they're not all the same (as white), and how do they represent colours?
+    <br>
+    ... bit of googling on PNG image type ...
+    <br>
+    ... come across the 'indexed' colour type ...
+    <br>
+    ... look at the palette of the image ...
+    <br>
+    </p>
+    <pre>
+      <code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> challenge_image.palette.mode</span>
+'RGB'
+&gt;&gt;&gt;
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> challenge_image.palette.palette</span>
+b'\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00'
+&gt;&gt;&gt;
+      </code>
+    </pre>
+    <p>
+    That palette looks like it can explain why everything is white: all the
+    indexes that are used in the image have the white colour.  There are a
+    bunch of other indexes not used in the image, and some of them are
+    non-white.
+    <br>
+    You may even have printed the image out in terms of these numbers and seen
+    that they encode the shapes of the alphabet and numbers.
+    <aside>
+      Output below truncated in both height and width for illustration
+      purposes.
+    </aside>
+    </p>
+    <pre>
+      <code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> all_pixels = iter(challenge_image.getdata())</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> for y in range(challenge_image.height):</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment">   for x in range(challenge_image.width):</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment">       print(</span><span class="String">'{0:3}'</span><span class="Comment">.format(next(all_pixels)), end=</span><span class="String">''</span><span class="Comment">)</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment">   print()^M</span>
+... snip ...
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1  1  1
+1  1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1  1
+1  1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1
+1  1  1  1  1  1 75 75 75 75 75 75 75 75 75  1  1 75 75 75 75  1  1  1  1
+1  1  1  1  1  1 75 75 75 75  1  1  1  1  1  1  1 75 75 75 75  1  1  1  1
+1  1  1  1  1  1 75 75 75 75  1  1  1  1  1  1 75 75 75 75 75  1  1  1  1
+1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1 75 75 75 75 75 75 75 75 75 75 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1  1 75 75 75 75 75 75 75 75  1 75 75 75 75  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+... snip ...
+      </code>
+    </pre>
+    <p>
+    Here is the point that someone just has to make a guess, if you read the
+    clue of "Shift-The-Red" then you might recognise that the last colour in
+    the palette is pure red, and that you have to move (or "shift") it.
+    <br>
+    The answer is to take that red colour from the end, and put it at the
+    start.  This moves all other pixels one up in the index, changing the
+    mapping between colours and indexes.  This change in the mapping now
+    selects certain letters out by the index they're encoded with -- turning
+    those letters black.
+
+    You have to update the CRC of the PLTE chunk now (which is unfortunate, but
+    I didn't find a way to keep the CRC the same while still having a transform
+    as neat as this one), but once that's done you have the final image.
+    The password is just read off of this image left-to-right, top-to-bottom.
+    </p>
+    <p>
+      <h3>The Solution Image</h3>
+      <img src="solution.png" alt="Solution!">
+    </p>
+    </main>
+  </body>
+</html>
+
+
