@@ -70,7 +70,8 @@ b'\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x
     indexes that are used in the image have the white colour.  There are a
     bunch of other indexes not used in the image, and some of them are
     non-white.
-    <br>
+    </p>
+    <p>
     You may even have printed the image out in terms of these numbers and seen
     that they encode the shapes of the alphabet and numbers.
     <aside>
@@ -121,13 +122,15 @@ b'\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x
     Here is the point that someone just has to make a guess, if you read the
     clue of "Shift-The-Red" then you might recognise that the last colour in
     the palette is pure red, and that you have to move (or "shift") it.
-    <br>
+    </p>
+    <p>
     The answer is to take that red colour from the end, and put it at the
     start.  This moves all other pixels one up in the index, changing the
     mapping between colours and indexes.  This change in the mapping now
     selects certain letters out by the index they're encoded with -- turning
     those letters black.
-
+    </p>
+    <p>
     You have to update the CRC of the PLTE chunk now (which is unfortunate, but
     I didn't find a way to keep the CRC the same while still having a transform
     as neat as this one), but once that's done you have the final image.
