@@ -131,10 +131,22 @@ b'\xff\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x
     those letters black.
     </p>
     <p>
-    You have to update the CRC of the PLTE chunk now (which is unfortunate, but
-    I didn't find a way to keep the CRC the same while still having a transform
-    as neat as this one), but once that's done you have the final image.
-    The password is just read off of this image left-to-right, top-to-bottom.
+    If you want to adjust the palette yourself you'd have to update the CRC of
+    the PLTE chunk now (which is unfortunate, but I didn't find a way to keep
+    the CRC the same while still having a transform as neat as this one), but
+    if using PIL at least you may not have to worry about it.
+    </p>
+    <pre>
+      <code>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> orig_palette = challenge_image.palette.palette</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> challenge_image.palette.palette = orig_palette[-3:] + orig_palette[:-3]</span>
+<span class="PreProc">vshcmd: &gt;</span><span class="Comment"> challenge_image.show()</span>
+&gt;&gt;&gt; &gt;&gt;&gt; &gt;&gt;&gt;
+      </code>
+    </pre>
+    <p>
+    And then you have the solution image. The password is just read off of this
+    image left-to-right, top-to-bottom.
     </p>
     <p>
       <h3>The Solution Image</h3>
