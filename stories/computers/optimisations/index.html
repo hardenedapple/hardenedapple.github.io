@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="/basicstyle.css">
+    <title>ELF function override</title>
+  </head>
+  <body>
+    <main role="main">
+    <header>
+      <h1>Thoughts on Compiler Optimisations</h1>
+    </header>
+    <p>
+      This is a story about how I changed my mind on something, or I guess how
+      I realised something.
+    </p>
+
+    <p>
+      In my day job I work on compilers.
+      I mainly have an interest around adding instrumentation for enhanced
+      security or sanitisation, and architecture enablement.
+      During some chats with people in my office they mentioned how they found
+      working on performance optimisations much more interesting.  I understood
+      that position, since the algorithms can be very interesting to get
+      into.  However I always found more of a sense of achievement in adding
+      some instrumentation feature.
+    </p>
+
+    <p>
+      I always found such instrumentation more worthwhile since I could see a
+      fundamental difference to the user of the compiler.  Sure it wasn't used
+      every compilation, but I was providing a new ability (e.g. the ability to
+      catch certain problems at run time) while working on performance just
+      provided a very small benefit that many people wouldn't even notice.
+    </p>
+
+    <p>
+      That's not to say that improving performance in general seemed pointless, I had
+      taken to heart the idea that a large enough improvement in performance could
+      change how people use something.  I believed that such huge improvements were
+      certainly worth achieving (this is quite obvious in my day-to-day work,
+      since our testsuite takes so long that I tend to run it overnight).
+      However given Proebsting’s law (a somewhat tongue-in-cheek law that says compiler
+      optimisations provide a doubling of speed every 18 <em>years</em>) pales
+      in comparison to the progress of Moores law, how could such a small
+      improvement do anything for the users?
+    </p>
+
+    <p>
+      Recently I was idly musing on what change a huge improvement in compiler
+      performance could even bring.  Especially since you can't actually do any
+      more work on the processor, so there's a hard limit on any performance
+      improvement of your program.
+      When thinking about what sort of change the compiler could cause I
+      started thinking in terms of what a difference in compiler performance
+      would look like compared to a difference in processor speed.
+      I figured the main difference would be that you could write programs in
+      more expressive ways, avoiding ugly tricks that people sometimes do in
+      the name of performance.
+    </p>
+
+    <aside>
+      I think this looks very similar to benefits you could get from a new
+      programming language, but within the same language so keeping your
+      ecosystem.
+    </aside>
+
+    <p>
+      But that's already happening!  In fact I hit this recently when a
+      collegue caught some ugly bit of my code and pointed out that Scalar
+      Replacement of Aggregates (SRA) would take care of the performance
+      improvement I was trying to manually handle. He didn't even have to
+      convince me of the fact that it was silly to be worrying about
+      performance here, he could promise me the tiny extra performance I was
+      concerned about with the cleaner source code.
+    </p>
+
+    <p>
+      So what was the problem with my original thought process?  Essentially, the
+      performance improvement required to change behaviour <em>does not have to
+      be big</em>.  In some cases it merely has to be enough to change someone's
+      mind rather than be big enough to change what's possible.
+      In this particular case it had to be enough to remove the little voice in my
+      head complaining about the tiny amount of pointless work.
+    </p>
+
+    <p>
+      I guess it's somewhat similar to the joke about not needing to outswim a
+      shark, just having to outswim whoever you're with -- in this case it's
+      not the performance improvement from that SRA optimisation that matters,
+      it's that the SRA optimisation generated code is no slower on pretty
+      source compared to ugly source.
+    </p>
+
+    <p>
+      And that's how I came to recognise more of the worth of compiler
+      optimisations.
+    </p>
+
+    <p>
+      In summary: though compiler optimisations don't seem very powerful in
+      percentage terms, they can still cause a real change in programmers
+      behaviour -- letting them write in a more expressive manner rather than
+      worrying so much about some classes of optimisations.
+    </p>
+    </main>
+  </body>
+</html>
